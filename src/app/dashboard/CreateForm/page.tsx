@@ -47,7 +47,40 @@ function TemplateFormApp({ children }: TemplateFormAppProps) {
     const templateFields = useMemo<TemplateField[]>(() => { return fieldMappings.map(mapping => ({ id: mapping.templateField, type: mapping.type, label: mapping.formField.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()), value: '', })); }, [fieldMappings]);
     const [templateFieldsState, setTemplateFieldsState] = useState<TemplateField[]>(templateFields);
 
-    useEffect(() => { const fetchReferences = async () => { setIsLoadingReferences(true); setReferenceError(null); try { const token = localStorage.getItem('access_token_w'); const headers: HeadersInit = { 'Content-Type': 'application/json' }; if (token) { headers['Authorization'] = `Bearer ${token}`; } const res = await fetch(`${API_URL}/references`, { headers }); if (!res.ok) { throw new Error(`API request failed with status ${res.status}`); } const data = await res.json(); if (Array.isArray(data)) { setAllReferences(data); } else { throw new Error('API-dən gözlənilməz məlumat formatı gəldi'); } } catch (err: any) { console.error('Error fetching references:', err); setReferenceError(`Referansları çəkərkən xəta baş verdi: ${err.message}`); setAllReferences([]); } finally { setIsLoadingReferences(false); } }; fetchReferences(); }, []);
+    useEffect(() => { 
+        const fetchReferences = async () => { 
+            setIsLoadingReferences(true); setReferenceError(null); 
+            try { 
+                const token = localStorage.getItem('access_token_w'); 
+                const headers: HeadersInit = { 'Content-Type': 'application/json' }; 
+                if (token) { 
+                    headers['Authorization'] = `Bearer ${token}`; 
+                } 
+                console.log(`${API_URL}/references`);
+                const res = await fetch(`${API_URL}/references`, { headers }); 
+                console.log(res);
+                if (!res.ok) { 
+                    console.log(res);
+                    console.log(res.status);
+                    throw new Error(`API request failed with status ${res.status}`); 
+                } 
+                const data = await res.json(); 
+                console.log(data);
+                if (Array.isArray(data)) { 
+                    setAllReferences(data); 
+                } else { 
+                    throw new Error('API-dən gözlənilməz məlumat formatı gəldi'); 
+                } 
+            } catch (err: any) { 
+                console.error('Error fetching references:', err); 
+                setReferenceError(`Referansları çəkərkən xəta baş verdi: ${err.message}`); 
+                setAllReferences([]); 
+            } finally { 
+                setIsLoadingReferences(false); 
+            } 
+        }; 
+        fetchReferences(); 
+    }, []);
     const dynamicDbData = useMemo<DynamicDbData>(() => { const data: DynamicDbData = { companies: [], vendors: [], contracts: [], customs: [], documentTypes: [], subContractorNames: [] }; allReferences.forEach(ref => { const item = { id: ref.id, name: ref.name }; switch (ref.type) { case 'Company': data.companies.push(item); break; case 'Vendor Name': data.vendors.push(item); break; case 'Contract Number': data.contracts.push(item); break; case 'Customs Department': data.customs.push(item); break; case 'Document Type': data.documentTypes.push(item); break; case 'Sub-Contractor Name': data.subContractorNames.push(item); break; } }); return data; }, [allReferences]);
     useEffect(() => { if (!isLoadingReferences && dynamicDbData.documentTypes.length > 0 && !formData.documentType) { setFormData(prev => ({ ...prev, documentType: dynamicDbData.documentTypes[0].id })); } }, [dynamicDbData.documentTypes, formData.documentType, isLoadingReferences]);
     useEffect(() => { setTemplateFieldsState(templateFields); }, [templateFields]);

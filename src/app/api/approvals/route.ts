@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 
+// Explicitly marking this route as dynamic
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1];
@@ -27,4 +30,4 @@ export async function GET(request: Request) {
       { status: 500 }
     );
   }
-} 
+}

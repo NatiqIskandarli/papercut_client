@@ -1008,8 +1008,6 @@ export const getTemplateDetailsForUser = async (id: string): Promise<SavedTempla
   const endpoint = `/templates/${id}/shared`; // Use the dedicated 'shared' endpoint
   try {
     console.log(`API Call: GET ${endpoint}`);
-    // typedApi.get uses the axios instance with interceptors (handles auth)
-    // Interceptor returns response.data on success
     const responseData = await typedApi.get(endpoint);
 
     if (!responseData) {
@@ -1051,7 +1049,7 @@ export const getTemplateDetailsForUser = async (id: string): Promise<SavedTempla
   }
 }
 
-  export const getLettersPendingMyReview = async (): Promise<any[]> => { // Define a specific type later e.g., PendingReviewLetter[]
+  export const getLettersPendingMyReview = async (): Promise<any[]> => {
     try {
         console.log('API Call: GET /letters/pending-review');
         const response = await typedApi.get('/letters/pending-review');

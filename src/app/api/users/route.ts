@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
+// Explicitly marking this route as dynamic
+export const dynamic = 'force-dynamic';
+
 // Get all users
 export async function GET() {
   try {
@@ -18,4 +21,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-} 
+}

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
+// Explicitly marking this route as dynamic
+export const dynamic = 'force-dynamic';
+
 // Update user
 export async function PUT(
   request: Request,
@@ -51,4 +54,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-} 
+}

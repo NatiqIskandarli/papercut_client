@@ -1,0 +1,123 @@
+.navigation-bar {
+    position: relative;
+    top: 0;
+    left: 0;
+    background-color: var(--white);
+    height: 60px;
+    display: flex;    
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    transition: left 0.3s ease;
+  }
+  
+  .sidebar + .navigation-bar{
+    width: calc(100% - 250px);
+    left: 250px;
+  }
+
+  .collapsed + .navigation-bar{
+    width: calc(100% - 80px);
+    left: 80px !important;
+  }
+  
+  .navigation-logo {
+    font-size: 24px;
+    font-weight: bold;
+  }
+  
+  .navigation-links {
+    display: flex;
+    gap: 20px;
+  }
+  
+  .nav-link {
+    color: #555;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  
+  .nav-link.active {
+    color: var(--primary-color);
+  }
+  
+  .navigation-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .navigation-actions .action-item {
+    display: flex;
+    align-items: center;
+    margin-right: 20px;
+    color: var(--dark-grey);
+    font-weight: 500;
+  }
+
+  .navigation-actions .action-item span{
+    font-size: 14px;
+  }
+  
+  .navigation-actions .avatar {
+    margin-left: 20px;
+    cursor: pointer;
+  }
+
+
+ 
+  .navigation-actions .action-item {
+    position: relative;
+    cursor: pointer;
+  }
+  
+  .notifications-dropdown {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 10px;
+    max-width: 300px;
+  }
+  
+  .notifications-dropdown .ant-list-item {
+    padding: 10px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .notifications-dropdown .ant-list-item:last-child {
+    border-bottom: none;
+  }
+  
+  .view-all-button {
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: bold;
+    color: var(--primary-color);
+    border-top: 1px solid #f0f0f0;
+  }
+  
+  .view-all-button:hover {
+    background-color: #f5f5f5;
+  }
+  
+  
+
+  .user-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px;
+  }
+  
+  .user-info {
+    font-size: 14px;
+  }
+  
+  .user-info strong {
+    font-size: 16px;
+  }
+  

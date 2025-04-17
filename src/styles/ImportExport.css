@@ -1,0 +1,44 @@
+.import-export-page {
+    padding: 20px;
+  }
+  
+  .page-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+  
+  .file-type-options {
+    margin-bottom: 16px;
+  }
+  
+  .upload-option, .download-option {
+    display: flex;
+    flex-direction: column;
+    align-items: start;
+  }
+  
+  .option-icon {
+    font-size: 24px;
+    color: #f0c14b;
+    margin-bottom: 8px;
+  }
+  
+  .upload-button, .download-button {
+    background-color: #f0c14b;
+    border: none;
+    color: black;
+    margin-bottom: 8px;
+  }
+  
+  .file-input {
+    margin-bottom: 8px;
+    width: 100%;
+  }
+  
+  .proceed-button {
+    background-color: #f0c14b;
+    border: none;
+    color: black;
+  }
+  

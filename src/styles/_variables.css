@@ -1,0 +1,24 @@
+:root {
+    --background-color: #dadada;
+    --text-color: #000000;
+    --primary-color: #f8d95f;
+    --secondary-color: #ffffff;
+    --white: #ffffff;
+    --green:#00B69B;
+    --purple:#F93C65;
+    --light-blue:#dfecff;
+    --grey:#888888;
+    --dark-grey:#333333;
+    --border-radius:5px;
+    --light-green:#c8f6db;
+    --light-red:#f9c8c8;
+    --light-yellow:#f9f3c8;
+    --yellow:#fce00d;
+}
+  
+.dark-mode {
+    --background-color: #121212;
+    --text-color: #ffffff;
+    --primary-color: #1a73e8;
+    --secondary-color: #adb5bd;
+  }

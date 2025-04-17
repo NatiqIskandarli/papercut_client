@@ -1,0 +1,60 @@
+
+.marketingTeamFoot{
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap
+  }
+
+  /* General Box Styling */
+.marketingTeamFoot .box {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+}
+
+/* Table Box Styling */
+.marketingTeamFoot .tableBox {
+  flex: 2;
+  min-width: 60%;
+}
+
+.marketingTeamFoot .recordTable .ant-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.marketingTeamFoot .filtersFollowBar {
+  display: flex;
+  justify-content: end;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.marketingTeamFoot .followButton {
+  background-color: #ffcc00;
+  border-color: #ffcc00;
+  color: #000;
+}
+
+/* Activity Feed Box Styling */
+.marketingTeamFoot .activityFeedBox {
+  flex: 1;
+  min-width: 35%;
+}
+
+.marketingTeamFoot .activityFeedTabs {
+  .ant-tabs-tab {
+    font-weight: bold;
+  }
+}
+
+.marketingTeamFoot .activityFeed,
+.marketingTeamFoot .commentsFeed {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}

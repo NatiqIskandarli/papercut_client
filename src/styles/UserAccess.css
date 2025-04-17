@@ -1,0 +1,68 @@
+.user-access-page {
+    padding: 20px;
+    background-color: #f5f5f5;
+}
+
+.user-access-page .page-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+.user-access-page .back-button {
+    font-size: 16px;
+    margin-bottom: 20px;
+    color: #1890ff;
+}
+
+.user-access-page .ant-table {
+    margin-bottom: 20px;
+}
+
+.user-access-page .ant-table th,
+.user-access-page .ant-table td {
+    text-align: left;
+    font-weight: bold;
+    text-decoration: underline;
+}
+
+.user-access-page .ant-table td {
+    border-right: 0.1px solid #ccc;
+    font-weight: normal;
+    text-decoration: none;
+}
+
+.user-access-page .action-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.user-access-page .action-buttons .approveok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-green);
+}
+
+.user-access-page .action-buttons .approveok:hover {
+    background-color: var(--green) !important;
+}
+
+.user-access-page .action-buttons .rejectok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+.user-access-page .action-buttons .reassignok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-yellow);
+}
+
+.user-access-page .action-buttons .deleteok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-red);
+}
+

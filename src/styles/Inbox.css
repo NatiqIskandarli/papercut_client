@@ -1,0 +1,134 @@
+.inbox-page {
+    margin: 20px;
+    padding: 20px;
+  }
+  
+  .inbox-header {
+    margin-bottom: 20px;
+  }
+  
+  .page-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-left: 10px;
+  }
+  
+  .search-input {
+    width: 200px;
+    margin-left: 10px;
+  }
+  
+  .action-buttons .action-btn {
+    margin-right: 5px;
+    color: var(--grey);
+  }
+  
+  .footer-section{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+  }
+  .pagination {
+    margin-top: 10px;
+    text-align: right;
+  }
+  
+ td:hover{
+  cursor: pointer;
+ }
+
+ .custom-tabs .ant-tabs-ink-bar {
+  background-color: var(--primary-color);
+}
+
+.ant-tabs-tab-active .ant-tabs-tab-btn{
+  color: var(--text-color) !important;
+  border: 1px solid #f8d95f;
+    padding: 8px 10px;
+    border-radius: 5px;
+    background: #f8d95f;
+}
+
+.ant-tabs-tab-btn{
+  color: var(--text-color);
+  border: 1px solid var(--text-color);
+  padding: 8px 10px;
+  border-radius: 5px;
+}
+
+.action-buttons .checkok {
+  background-color: var(--light-green);
+}
+
+.action-buttons .checkok:hover {
+  background-color: var(--green) !important;
+  color: var(--white) !important;
+}
+
+.action-buttons .closedel {
+  background-color: var(--light-red);
+}
+
+.action-buttons .closedel:hover {
+  background-color: var(--purple) !important;
+  color: var(--white) !important;
+}
+
+
+.action-buttons .assignok {
+  background-color: var(--light-yellow);
+}
+
+.action-buttons .assignok:hover {
+  background-color: var(--primary-color) !important;
+  color: var(--white) !important;
+}
+
+.status-tracker {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.status-btn {
+  border: none;
+  background: none;
+  padding: 8px;
+  font-size: 16px;
+}
+
+.check-btn {
+  background-color: var(--green);
+  color: white;
+}
+
+.check-btncheck {
+  color: var(--grey);
+}
+
+.close-btn {
+  color: var(--grey);
+}
+
+.sync-btn {
+  color: var(--grey);
+}
+
+.delete-btn {
+  background-color: var(--purple);
+  color: white;
+}
+
+.status-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.ant-divider-horizontal {
+  width: 14px;
+  min-width: 12px !important;
+  margin: 0 -8px;
+  height: 1px;
+  background: #000;
+}

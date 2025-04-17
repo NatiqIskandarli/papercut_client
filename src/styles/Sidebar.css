@@ -1,0 +1,147 @@
+@import './_variables.css';
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 250px;
+    background-color: var(--white);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease;
+    color: var(--dark-grey);
+    overflow: hidden;
+  }
+  
+    
+  .sidebar .sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .sidebar .sidebar-logo {
+    font-size: 24px;
+    font-weight: bold;
+  }
+
+  .sidebar .sidebar-logo img{
+    width: 90%;
+    height: 60px;
+  }
+  
+  .sidebar .toggle-button {
+    font-size: 14px;
+    background: var(--primary-color);
+    width: 24px;
+    height: 24px;
+    border: none;
+    cursor: pointer;
+    border-radius: 100%;
+  }
+  
+  .sidebar .sidebar-section {
+    margin-top: 20px;
+  }
+  
+  .sidebar .sidebar-title {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    text-align: left;
+  }
+  
+  .sidebar .sidebar-title:hover {
+    background-color: var(--primary-color);
+    border-radius: var(--border-radius);
+  }
+  
+  .sidebar ul {
+    list-style-type: none;
+    padding: 0;
+  }
+  
+  .sidebar ul li {
+    display: flex;
+    height: 40px;
+    align-items: center;
+    font-size: 16px;
+    padding: 10px;
+    cursor: pointer;
+    color: var(--dark-grey);
+    transition: background-color 0.2s;
+  }
+
+  .sidebar ul li.active,
+  .sidebar-section .active {
+    background-color: var(--primary-color);
+    border-radius: var(--border-radius);
+  }
+  
+  .sidebar ul li:hover {
+    background-color: var(--primary-color);
+    border-radius: var(--border-radius);
+  }
+  
+  .sidebar .sidebar-footer {
+    margin-top: auto;
+    font-size: 16px;
+    padding: 10px;
+    cursor: pointer;
+  }
+  
+  .sidebar .hidden {
+    display: none;
+  }
+  
+
+  /* collapsed */
+
+  .collapsed {
+    width: 80px !important;
+  }
+  
+  .collapsed .sidebar-logo {
+    font-size: 24px;
+    font-weight: bold;
+  }
+
+  .collapsed .sidebar-logo img{
+    width: 90%;
+    height: 60px;
+  }
+  
+  .collapsed .toggle-button {
+    font-size: 12px;
+    background: var(--primary-color);
+    width: 24px;
+    height: 20px;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 100%;
+  }
+  
+ ul.submenu{
+  display:flex;
+  flex: 1;
+  align-items: start;
+  justify-content: left;
+  flex-direction:column;
+ }
+
+ ul.submenu li{
+  flex: 1;
+  font-size:14px;
+  color:var(--dark-grey);
+  cursor:pointer;
+  transition:background-color 0.2s;
+ }
+ ul.submenu li:hover{
+  background-color:var(--primary-color);
+  border-radius:var(--border-radius);
+ }

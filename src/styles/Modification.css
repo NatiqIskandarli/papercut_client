@@ -1,0 +1,124 @@
+.modification-page {
+    padding: 20px;
+    background: #f5f5f5;
+    color: var(--text-color);
+    font-weight: bold;
+    min-height: 100vh;
+}
+
+.modification-page .page-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+.modification-page .modification-card {
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.modification-page .modification-card label {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.modification-page .ant-input,
+.modification-page .ant-select-selector,
+.modification-page .ant-picker {
+    width: 100%;
+    border-radius: 4px;
+}
+
+.modification-page .full-width {
+    width: 100%;
+}
+
+
+.modification-page textarea.ant-input {
+    resize: none;
+}
+
+.modification-page .ant-input-textarea {
+    width: 100%;
+    border-radius: 4px;
+}
+
+.modification-page .ant-input-textarea textarea {
+    font-size: 14px;
+    color: #555;
+}
+
+.modification-page .ant-input:hover,
+.modification-page .ant-select-selector:hover,
+.modification-page .ant-picker:hover {
+    border-color: var(--primary-color);
+}
+
+.modification-page .ant-input:focus,
+.modification-page .ant-select-focused .ant-select-selector,
+.modification-page .ant-picker-focused .ant-picker-input input {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgb(248 217 95);
+}
+
+.modification-page .highlighted{
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgb(248 217 95);
+}
+
+.modification-page .action-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modification-page .action-buttons .approveok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-green);
+}
+
+.modification-page .action-buttons .approveok:hover {
+    background-color: var(--green) !important;
+}
+
+.modification-page .action-buttons .rejectok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+.modification-page .action-buttons .reassignok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-yellow);
+}
+
+.modification-page .action-buttons .deleteok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-red);
+}
+
+
+.modification-page  .modification-card label{
+    height: 30px;
+}
+.modification-page  .modification-card input,
+.modification-page  .modification-card .ant-select-selector{
+    height: 40px;
+    margin-bottom: 20px;
+}
+
+.modification-page  .modification-card .ant-picker-input {
+    height: 30px;    
+}
+.modification-page  .modification-card .ant-picker-input input {
+    margin-bottom: 0px !important;
+}

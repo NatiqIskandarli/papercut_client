@@ -1,0 +1,43 @@
+.create-space-page {
+    padding: 20px;
+    background-color: #f7f8fc;
+  }
+  
+  .page-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+  
+  .space-form {
+    padding: 24px;
+    background-color: #ffffff;
+    border-radius: 8px;
+  }
+  
+  label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+  
+  .full-width {
+    width: 100%;
+  }
+  
+  .form-footer {
+    margin-top: 30px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+  }
+  
+  .create-button {
+    background-color: #ffd700;
+    border-color: #ffd700;
+  }
+  
+  .cancel-button {
+    border-color: #ffd700;
+  }
+  

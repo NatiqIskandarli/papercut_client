@@ -1,0 +1,87 @@
+.cabinet-page {
+    padding: 24px;
+    background: #f5f5f5;
+    color: var(--text-color);
+    font-weight: bold;
+  }
+
+.cabinet-details-page {
+    padding: 20px;
+}
+
+.cabinet-details-card {
+    margin-top: 20px;
+}
+
+.table-section {
+    margin-top: 20px;
+}
+
+.action-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.full-width {
+    width: 100%;
+}
+
+.duplication-icons .action-btn {
+    margin-right: 5px;
+}
+
+.fields-section {
+    margin-top: 20px;
+}
+
+.fields-section .ant-col {
+    display: flex;
+    align-items: center;
+}
+
+.fields-section .ant-input[readonly] {
+    background-color: #f5f5f5;
+}
+
+.fields-section .duplication-icons .anticon {
+    font-size: 18px;
+    color: #333;
+    cursor: pointer;
+}
+
+.cabinet-details-page .ant-checkbox .ant-checkbox-inner,
+.cabinet-details .ant-checkbox .ant-checkbox-inner{
+    width: 22px;
+    height: 22px;
+}
+
+
+
+.cabinet-page .action-buttons .approveok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-green);
+}
+
+.cabinet-page .action-buttons .approveok:hover {
+    background-color: var(--green) !important;
+}
+
+.cabinet-page .action-buttons .rejectok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+.cabinet-page .action-buttons .reassignok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-yellow);
+}
+
+.cabinet-pagee .action-buttons .deleteok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-red);
+}

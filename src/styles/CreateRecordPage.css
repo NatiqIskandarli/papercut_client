@@ -1,0 +1,164 @@
+.create-record-page {
+  padding: 24px;
+  background: #f5f5f5;
+}
+
+.create-record-page .header-section {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.create-record-page .header-section div{
+  display: flex;  
+  flex: 1;
+}
+.create-record-page div .back-button {
+  padding: 4px 8px;
+  color: #6B7280;
+  font-size: 16px;
+  height: 32px;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--primary-color);
+  border-radius: 50px;
+  
+}
+
+.create-record-page .back-button:hover {
+  color: #1677ff;
+  background: transparent;
+}
+.create-record-page .back-button .anticon {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.create-record-page .back-button span:last-child {
+  font-weight: bold;
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+.create-record-page .page-title {
+  margin: 0 0 0 15px !important;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.create-record-page .recent-cabinets {
+  margin-bottom: 24px;
+}
+
+
+.create-record-page .browse-button {
+  margin-bottom: 3px;
+  padding: 6px 16px;
+}
+
+.create-record-page .record-form {
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.create-record-page .record-form label {
+  display: block;
+  margin-bottom: 8px;
+  color: #374151;
+  font-weight: 500;
+}
+
+.create-record-page .record-form .ant-input,
+.create-record-page .record-form .ant-select,
+.create-record-page .record-form .ant-picker {
+  width: 100%;
+}
+
+.create-record-page .record-form .ant-select-selector {
+  height: 40px !important;
+  padding: 4px 11px !important;
+}
+
+.create-record-page .record-form .ant-select-selection-search {
+  height: 38px !important;
+}
+
+.create-record-page .record-form .ant-picker {
+  height: 40px;
+}
+
+.create-record-page .form-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.create-record-page .form-buttons .ant-btn {
+  padding: 6px 16px;
+  height: 40px;
+}
+
+.ant-btn-primary{
+  background-color: var(--primary-color) !important;
+  color: var(--text-color) !important;
+}
+
+.ant-btn-primary:hover{
+  background-color: var(--primary-color) !important;
+  color: var(--text-color) !important;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+
+
+.create-record-page .cabinet-card, .space-card {
+  background: #ffffff;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.create-record-page .cabinet-header, .space-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.create-record-page .cabinet-title, .space-title {
+  font-weight: 600;
+}
+
+.create-record-page .cabinet-content, .space-content {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.create-record-page .cabinet-image, .space-logo {
+  width: 116px;
+  height: 116px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.create-record-page .cabinet-footer, .space-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.create-record-page .cabinet-avatars {
+  margin-left: 8px;
+}
+
+.create-record-page .favorite-icon {
+  color: #faad14;
+}

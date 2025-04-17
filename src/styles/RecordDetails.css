@@ -1,0 +1,80 @@
+.record-details-page {
+    padding: 20px;
+    background-color: #f7f8fa;
+}
+
+.record-details-page .back-button {
+    margin-bottom: 20px;
+}
+
+.record-details-page .page-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+.record-details-page .record-details-card {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.record-details-page .record-details-card label{
+    height: 30px;
+}
+.record-details-page .record-details-card input,
+.record-details-page .record-details-card .ant-select-selector{
+    height: 40px;
+    margin-bottom: 20px;
+}
+
+.record-details-page .record-details-card .ant-picker-input {
+    height: 30px;    
+}
+.record-details-page .record-details-card .ant-picker-input input {
+    margin-bottom: 0px !important;
+}
+
+.record-details-page .full-width {
+    width: 100%;
+}
+
+.record-details-page label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.record-details-page .action-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.record-details-page .action-buttons .approveok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-green);
+}
+
+.record-details-page .action-buttons .approveok:hover {
+    background-color: var(--green) !important;
+}
+
+.record-details-page .action-buttons .rejectok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+.record-details-page .action-buttons .reassignok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-yellow);
+}
+
+.record-details-page .action-buttons .deleteok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-red);
+}

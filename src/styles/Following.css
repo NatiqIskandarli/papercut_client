@@ -1,0 +1,119 @@
+/* Following.css */
+
+.following-page {
+    padding: 20px;
+    background-color: #f9f9f9;
+  }
+  
+  .back-button {
+    font-size: 16px;
+    margin-bottom: 20px;
+  }
+  
+  .page-title {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 20px;
+  }
+  
+  .following-tabs .ant-tabs-nav .ant-tabs-tab {
+    font-size: 16px;
+    font-weight: 500;
+  }
+  
+  .following-table {
+    margin-top: 10px;
+  }
+  
+  .following-table .ant-table-cell {
+    padding: 10px 16px;
+  }
+  
+  .following-table .ant-table-cell div {
+    display: flex;
+    align-items: center;
+  }
+  
+  .pagination-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+  
+  .avatar {
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  .avatar-group {
+    display: flex;
+    align-items: center;
+  }
+  
+  .card-content {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+  }
+  
+  .card-icon {
+    font-size: 30px;
+    margin-right: 12px;
+  }
+  
+  .card-value {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  
+  .card-value + p {
+    margin: 0;
+  }
+  
+  .metrics-cards .ant-card {
+    background-color: #fff;
+    border-radius: 8px;
+  }
+  
+  .following-table .ant-table-tbody > tr > td {
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .following-table .ant-table-tbody > tr:hover > td {
+    background-color: #fafafa;
+  }
+  
+  .following-table .ant-dropdown-trigger {
+    color: #595959;
+  }
+  
+  .ant-avatar-group {
+    display: inline-flex;
+  }
+  
+  .ant-avatar-group .ant-avatar {
+    margin-left: -8px;
+  }
+  
+  .ant-avatar-group .ant-avatar:first-child {
+    margin-left: 0;
+  }
+  
+  .following-tabs .ant-tabs-nav .ant-tabs-tab-active {
+    color: #1890ff;
+  }
+  
+  .ant-pagination-item {
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .ant-pagination-prev .ant-pagination-item-link,
+  .ant-pagination-next .ant-pagination-item-link {
+    display: flex;
+    align-items: center;
+  }
+  
+  

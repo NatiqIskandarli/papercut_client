@@ -1,0 +1,105 @@
+.container-layout {
+    margin-top: 0px;
+    margin-left: 250px;
+    padding: 0px;
+    transition: margin-left 0.3s ease;
+    background-color: #f9fafb;
+    min-height: calc(100vh - 60px);
+  }
+  
+  .collapsed + .container-layout{
+    margin-left: 80px;
+  }
+
+  .actionCustom .desktop-actions {
+    display: flex;
+  }
+  
+  .actionCustom .responsive-actions {
+    display: none;
+  }
+
+  .dashboardModules{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .customDashCard .flex{
+    display: block !important;
+  }
+  .icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    background-color: #f0f2f5;
+    border-radius: 8px;
+  }
+
+  .desktop-actions .approve,
+  .ant-popover-inner-content .approve{
+    border: 0px !important;
+    background-color: aquamarine;
+    color: var(--text-color);
+  }
+  .desktop-actions .approve:hover,
+  .ant-popover-inner-content .approve:hover{    
+    background-color: rgb(99, 228, 185) !important;
+    border-color: aquamarine !important;
+    color: var(--text-color) !important;
+  }
+  
+  @media (max-width: 1280px) {
+    .actionCustom .desktop-actions {
+      display: none;
+    }
+    .actionCustom .responsive-actions {
+      display: inline-block;
+    }
+  }
+  
+   
+  @media (max-width: 768px) {
+    .container-layout {
+      margin-left: 0;
+      padding: 10px;
+    }
+  }
+  
+  @media (min-width: 768px) and (max-width: 1024px) {
+
+    .container-layout {
+      margin-left: 200px;
+      padding: 0px;
+    }
+
+    .sidebar {
+      width: 200px;
+    }
+    .sidebar .sidebar-logo img{
+      width: 90%;
+      height: auto;
+    }
+
+    .sidebar + .navigation-bar{
+      width: calc(100% - 200px);
+      left: 200px;
+    }
+  
+    .collapsed + .navigation-bar{
+      width: calc(100% - 80px);
+      left: 80px !important;
+    }
+
+    .p-6 {
+      padding: 0.5rem !important;
+    }
+  }
+
+  @media (max-width: 1280px) {
+    .p-6 {
+      padding: 0.5rem !important;
+    }
+  }

@@ -1,0 +1,91 @@
+.container {
+    padding: 20px;
+    max-width: 600px; /* Adjust max-width as needed */
+
+  }
+  
+  
+  .header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    justify-content: flex-start; /* Align header to left */
+  }
+  
+  
+  /* ... (rest of the CSS from the previous response) ... */
+  
+  .radioGroup {
+    display: block;  /* Fix radio button layout issue */
+    margin-bottom: 10px;
+  }
+  
+  .uploadOptions {
+    display: flex;
+    flex-direction: row;
+    margin-bottom: 10px;
+    margin-top: 10px;
+  }
+  
+  .fromDevice{
+    display: flex;
+    width: 30%;
+    flex-direction: column;
+    margin-right: 10px;
+  }
+  
+  .fromWeb{
+    width: 70%;
+    display: flex;
+    flex-direction: row;
+  }
+
+.uploadButton {
+    width: 100%;
+    margin-bottom: 8px;
+    justify-content: flex-start;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--text-color);
+}
+
+ .textInput {
+    width: 100%;
+    padding: 8px;
+    margin-right: 10px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    height: 35px;
+  }
+
+  .proceedButton {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    width: 100px;
+    color: var(--text-color);
+    margin-left: -115px;
+    height: 30px;
+    margin-top: 2px;
+  }
+
+  .subtitle {
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-decoration: underline;
+  }
+  
+  
+  /* Responsive Styles (Media Queries) */
+  @media (max-width: 500px) { /* Adjust breakpoint as needed */
+    .uploadOptions {
+      flex-direction: column; /* Stack buttons vertically on smaller screens */
+    }
+  
+    .uploadButton {
+       width: 100%;  /* Make buttons full width on small screens */
+       margin-bottom: 8px; /* Space between buttons on small screens */
+       justify-content: flex-start;
+    }
+  
+  
+  }

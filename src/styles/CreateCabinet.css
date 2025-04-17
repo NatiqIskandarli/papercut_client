@@ -1,0 +1,156 @@
+.create-cabinet-page {
+  padding: 24px;
+  background: #f5f5f5;
+  color: var(--text-color);
+  font-weight: bold;
+}
+
+.create-cabinet-page .cabinet-details-page {
+  padding: 20px;
+  margin-top: 20px;
+  background: #fff;
+} 
+
+.create-cabinet-page .cabinet-details-card {
+  margin-top: 20px;
+}
+
+.create-cabinet-page .table-section {
+  margin-top: 20px;
+}
+
+.create-cabinet-page .action-buttons {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.create-cabinet-page .full-width {
+  width: 100%;
+  margin: 5px 0;
+}
+
+.create-cabinet-page .duplication-icons .action-btn {
+  margin-right: 5px;
+}
+
+.create-cabinet-page .fields-section {
+  margin-top: 20px;
+}
+
+.create-cabinet-page .fields-section .ant-col {
+  display: flex;
+  align-items: center;
+}
+
+.create-cabinet-page .fields-section .ant-input[readonly] {
+  background-color: #f5f5f5;
+}
+
+.create-cabinet-page .fields-section .duplication-icons .anticon {
+  font-size: 18px;
+  color: #333;
+  cursor: pointer;
+}
+
+
+.create-cabinet-page .header-section {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.create-cabinet-page .back-button {
+  padding: 4px 8px;
+  color: #6B7280;
+  font-size: 16px;
+  height: 32px;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--primary-color);
+  border-radius: 50px;
+  
+}
+
+.create-cabinet-page .back-button:hover {
+  color: #1677ff;
+  background: transparent;
+}
+.create-cabinet-page .back-button .anticon {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.create-cabinet-page .back-button span:last-child {
+  font-weight: bold;
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+.create-cabinet-page .page-title {
+  margin: 0 0 0 15px !important;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+
+.create-cabinet-page .cabinet-card, .space-card {
+  background: #ffffff;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+
+.create-cabinet-page .cabinet-header, .space-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.create-cabinet-page .cabinet-title, .space-title {
+  font-weight: 600;
+}
+
+.create-cabinet-page .cabinet-content, .space-content {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.create-cabinet-page .cabinet-image, .space-logo {
+  width: 116px;
+  height: 116px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.create-cabinet-page .cabinet-footer, .space-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.create-cabinet-page .cabinet-avatars {
+  margin-left: 8px;
+}
+
+.create-cabinet-page .favorite-icon {
+  color: #faad14;
+}
+
+.ant-btn-primary{
+  background-color: var(--primary-color) !important;
+  color: var(--text-color) !important;
+}
+
+.ant-btn-primary:hover{
+  background-color: var(--primary-color) !important;
+  color: var(--text-color) !important;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+}

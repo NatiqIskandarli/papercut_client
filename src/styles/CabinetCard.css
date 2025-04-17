@@ -1,0 +1,48 @@
+.cabinet-card, .space-card {
+    background: #ffffff;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+  
+.cabinet-header, .space-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+  
+.cabinet-title, .space-title {
+    font-weight: 600;
+}
+  
+.cabinet-content, .space-content {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+  
+.cabinet-image, .space-logo {
+    width: 116px;
+    height: 116px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+  
+.cabinet-footer, .space-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+  
+.cabinet-avatars {
+    margin-left: 8px;
+}
+  
+.favorite-icon {
+    color: #faad14;
+}
+  
+.navigate-icon {
+    color: #1677ff;
+}

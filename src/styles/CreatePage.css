@@ -1,0 +1,79 @@
+.create-page {
+  padding: 24px;
+  background: #f5f5f5;
+} 
+
+.create-page .header-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.create-page .back-button {
+  padding: 4px 8px;
+  color: #6B7280;
+  font-size: 16px;
+  height: 32px;
+  border: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--primary-color);
+  border-radius: 50px;
+}
+
+.create-page .back-button:hover {
+  color: #1677ff;
+  background: transparent;
+}
+.create-page .back-button .anticon {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.create-page .back-button span:last-child {
+  font-weight: bold;
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+.create-page .page-title {
+  margin: 0 !important;
+}
+
+.create-page .create-options {
+  margin-bottom: 48px;
+}
+
+.create-page .create-option-card {
+  background: var(--primary-color);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.create-page .create-option-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.create-page .create-option-content {
+  padding: 24px;
+  text-align: center;
+}
+
+.create-page .icon {
+  font-size: 24px;
+  margin-bottom: 16px;
+  color: var(--text-color);
+}
+
+.create-page .section-title {
+  margin-bottom: 24px !important;
+}
+
+.create-page .ant-row{
+  margin-bottom: 24px !important;
+}
+

@@ -1,0 +1,82 @@
+.space-page {
+    padding: 24px;
+    background: #f5f5f5;
+    color: var(--text-color);
+    font-weight: bold;
+}
+
+.space-page  .page-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+.space-page .space-card {
+    margin-bottom: 20px;
+    padding: 20px;
+}
+
+.space-page .full-width {
+    width: 100%;
+}
+
+.space-page .logo-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.space-page .space-card label{
+    height: 30px;
+}
+.space-page .space-card input,
+.space-page .space-card .ant-select-selector{
+    height: 40px;
+    margin-bottom: 20px;
+}
+
+.space-page .space-card .ant-picker-input {
+    height: 30px;    
+}
+.space-page .space-card .ant-picker-input input {
+    margin-bottom: 0px !important;
+}
+
+.space-page label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.space-page .action-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.space-page .action-buttons .approveok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-green);
+}
+
+.space-page .action-buttons .approveok:hover {
+    background-color: var(--green) !important;
+}
+
+.space-page .action-buttons .rejectok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+.space-page .action-buttons .reassignok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-yellow);
+}
+
+.space-page .action-buttons .deleteok {
+    margin-right: 5px;
+    color: var(--text-color);
+    background-color: var(--light-red);
+}

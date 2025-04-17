@@ -1,0 +1,91 @@
+/* UserManagement.css */
+
+.user-management-page {
+    padding: 20px;
+    background-color: #f9f9f9;
+}
+  
+  .user-info {
+    display: flex;
+    align-items: center;
+  }
+  
+  .user-info .user-name {
+    margin-left: 10px;
+  }
+  
+  .user-list-table .ant-table-cell {
+    padding: 10px 16px;
+  }
+  
+  .user-list-table .user-info {
+    display: flex;
+    align-items: center;
+  }
+  
+  .user-list-table .user-info .user-name {
+    font-weight: 500;
+  }
+  
+  .user-list-table .user-info .ant-avatar {
+    margin-right: 8px;
+  }
+  
+  .user-management-page .ant-table {
+    margin-top: 20px;
+  }
+  
+  .user-management-page .ant-btn-primary {
+    background-color: #ffcc00;
+    border-color: #ffcc00;
+  }
+  
+  .user-management-page .ant-btn-primary:hover {
+    background-color: #ffdd44;
+    border-color: #ffdd44;
+  }
+  
+  .user-management-page .ant-table-thead > tr > th {
+    background-color: #f5f5f5;
+    font-weight: bold;
+  }
+  
+  .user-management-page .ant-pagination-item-active {
+    /* background-color: #ffcc00; */
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+  }
+  .user-management-page .ant-pagination-item-active a {
+    color: var(--primary-color);
+  }
+  
+  .user-management-box{
+    margin-top: 20px;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px 0 rgba(0,0,0,0.1);
+  }
+
+  .user-management-box .actions-row{
+    display: flex;
+    flex-direction: row;
+    align-items: end;
+    justify-content: end;
+  }
+
+  .user-management-box .actions-row .action-button{
+    margin-left: 10px;
+  }
+
+
+  .footer-section{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+  }
+  .pagination {
+    margin-top: 10px;
+    text-align: right;
+  }

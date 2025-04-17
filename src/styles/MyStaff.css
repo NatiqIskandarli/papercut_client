@@ -1,0 +1,109 @@
+  .my-staff-page {
+    padding: 20px;
+  }
+  
+  .my-staff-page .page-title {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+  
+  .my-staff-page .metrics-cards {
+    margin-bottom: 16px;
+  }
+  
+  .my-staff-page .metric-card {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+  }
+  
+  .my-staff-page .card-content {
+    display: flex;
+    align-items: center;
+  }
+  
+  .my-staff-page .card-icon {
+    font-size: 28px;
+    margin-right: 12px;
+  }
+  
+  .my-staff-page .card-value {
+    font-size: 24px;
+    font-weight: bold;
+  }
+  
+  .my-staff-page .records-tabs {
+    margin: 20px 0;
+  }
+  
+  .my-staff-page .search-filter-row {
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+  }
+  
+  .my-staff-page .records-table .priority-tag.medium {
+    color: #faad14;
+  }
+  
+  .my-staff-page .avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  .my-staff-page .pagination-bar {
+    margin-top: 16px;
+    text-align: right;
+  }
+
+
+
+  .my-staff-page .dashboardModules{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .my-staff-page .customDashCard .flex{
+    display: block !important;
+  }
+
+  
+  .my-staff-page .icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    background-color: #f0f2f5;
+    border-radius: 8px;
+  }
+  
+
+
+
+
+.unallocated-section {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 16px;
+}
+
+.unallocated-section .unallocated-header {
+    display: flex;
+    justify-content: end;
+    align-items: center;
+    margin-bottom: 16px;
+}
+.unallocated-section .assign-button{
+  background-color: var(--primary-color);
+  color: var(--text-color);
+}
+
+.unallocated-section .filterbtn{
+  margin: 0 10px;
+}

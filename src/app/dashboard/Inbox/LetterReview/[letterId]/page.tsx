@@ -30,16 +30,7 @@ interface FormData {
 
 const { Title } = Typography;
 
-const extractPlaceholders = (text: string): string[] => {
-    if (!text) return [];
-    const regex = /\$([a-zA-Z0-9-]+)\$/g;
-    const placeholders = new Set<string>();
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-        placeholders.add(match[1]);
-    }
-    return Array.from(placeholders);
-};
+
 
 const getFormFieldKeyFromPlaceholder = (placeholderId: string): keyof Omit<FormData, 'logoUrl' | 'signatureUrl' | 'stampUrl'> | null => {
     const mapping: { [key: string]: keyof Omit<FormData, 'logoUrl' | 'signatureUrl' | 'stampUrl'> } = {

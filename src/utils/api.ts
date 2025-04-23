@@ -313,23 +313,7 @@ export const verifyMagicLink = async (token: string): Promise<LoginResponse> => 
 // ===============================
 // INBOX/APPROVALS-RELATED
 // ===============================
-export const getApprovalRequests = async (): Promise<ApprovalRequest[]> => {
-  try {
-    return await typedApi.get('/approvals');
-  } catch (error) {
-    console.error('Error fetching approval requests:', error);
-    throw error;
-  }
-};
 
-// export const getMyPendingApprovals = async (): Promise<ApprovalRequest[]> => {
-//   try {
-//     return await typedApi.get('/approvals/my-pending');
-//   } catch (error) {
-//     console.error('Error fetching my pending approvals:', error);
-//     throw error;
-//   }
-// };
 
 export const getApprovalsWaitingForMe = async (): Promise<ApprovalRequest[]> => {
   try {
@@ -338,328 +322,6 @@ export const getApprovalsWaitingForMe = async (): Promise<ApprovalRequest[]> => 
     console.error('Error fetching approvals waiting for me:', error);
     throw error;
   }
-};
-
-// ===============================
-// RECORDS
-// ===============================
-export const getAllRecords = async (statusList: string): Promise<DocumentRecord[]> => {
-  try {
-    return await typedApi.get(`/records?status=${statusList}`);
-  } catch (error) {
-    console.error('Error fetching all records:', error);
-    throw error;
-  }
-};
-
-export const getRecordsByStatus = async (status: string): Promise<DocumentRecord[]> => {
-  try {
-    return await typedApi.get(`/records?status=${status}`);
-  } catch (error) {
-    console.error(`Error fetching records with status ${status}:`, error);
-    throw error;
-  }
-};
-
-export const getMyRecordsByStatus = async (status: string): Promise<DocumentRecord[]> => {
-  try {
-    return await typedApi.get(`/records/my-records?status=${status}`);
-  } catch (error) {
-    console.error(`Error fetching my records with status ${status}:`, error);
-    throw error;
-  }
-};
-
-export const getRecordsWaitingForMyApproval = async (): Promise<DocumentRecord[]> => {
-  try {
-    return await typedApi.get('/records/waiting-for-my-approval');
-  } catch (error) {
-    console.error('Error fetching records waiting for my approval:', error);
-    throw error;
-  }
-};
-
-export const deleteRecord = async (recordId: string): Promise<void> => {
-  try {
-    await typedApi.delete(`/records/${recordId}`);
-  } catch (error) {
-    console.error('Error deleting record:', error);
-    throw error;
-  }
-};
-
-// **Yeni**: approveRecord
-export const approveRecord = async (recordId: string): Promise<void> => {
-  try {
-    await typedApi.put(`/records/${recordId}/approve`, {
-      id: recordId,
-      type: 'record'
-    });
-  } catch (error) {
-    console.error('Error approving record:', error);
-    throw error;
-  }
-};
-
-// ===============================
-// SPACES
-// ===============================
-export const getSpacesByStatus = async (status: string): Promise<Space[]> => {
-  try {
-    return await typedApi.get(`/spaces/getByStatus?status=${status}`);
-  } catch (error) {
-    console.error(`Error fetching spaces with status ${status}:`, error);
-    throw error;
-  }
-};
-
-export const getMySpacesByStatus = async (status: string): Promise<Space[]> => {
-  try {
-    return await typedApi.get(`/spaces/my-spaces?status=${status}`);
-  } catch (error) {
-    console.error(`Error fetching my spaces with status ${status}:`, error);
-    throw error;
-  }
-};
-
-export const getSpacesWaitingForMyApproval = async (): Promise<Space[]> => {
-  try {
-    return await typedApi.get('/spaces/waiting-for-my-approval');
-  } catch (error) {
-    console.error('Error fetching spaces waiting for my approval:', error);
-    throw error;
-  }
-};
-
-export const deleteSpace = async (spaceId: string): Promise<void> => {
-  try {
-    await typedApi.delete(`/spaces/${spaceId}`);
-  } catch (error) {
-    console.error('Error deleting space:', error);
-    throw error;
-  }
-};
-
-// **Yeni**: approveSpace
-export const approveSpace = async (spaceId: string): Promise<void> => {
-  try {
-    // Bu route hal-hazırda "/approvals/:id/approve" şəklindədir
-    await typedApi.post(`/approvals/${spaceId}/approve`, {
-      type: 'space',
-      comment: 'Approved'
-    });
-  } catch (error) {
-    console.error('Error approving space:', error);
-    throw error;
-  }
-};
-
-// ===============================
-// CABINETS
-// ===============================
-export const getMyCabinetsByStatus = async (status: string): Promise<any[]> => {
-  try {
-    return await typedApi.get(`/cabinets/my-cabinets?status=${status}`);
-  } catch (error) {
-    console.error(`Error fetching my cabinets with status ${status}:`, error);
-    throw error;
-  }
-};
-
-export const getCabinetsWaitingForMyApproval = async (): Promise<any[]> => {
-  try {
-    return await typedApi.get('/cabinets/waiting-for-my-approval');
-  } catch (error) {
-    console.error('Error fetching cabinets waiting for my approval:', error);
-    throw error;
-  }
-};
-
-export const deleteCabinet = async (cabinetId: string): Promise<void> => {
-  try {
-    await typedApi.delete(`/cabinets/${cabinetId}`);
-  } catch (error) {
-    console.error('Error deleting cabinet:', error);
-    throw error;
-  }
-};
-
-// **Yeni**: approveCabinet
-export const approveCabinet = async (cabinetId: string): Promise<void> => {
-  try {
-    // Hal-hazırda POST /cabinets/:id/approve
-    await typedApi.post(`/cabinets/${cabinetId}/approve`);
-  } catch (error) {
-    console.error('Error approving cabinet:', error);
-    throw error;
-  }
-};
-
-// ===============================
-// Helper functions for transforming data
-// ===============================
-export const formatRecord = (record: DocumentRecord): FormattedRecord => {
-  return {
-    key: record.id,
-    id: record.id,
-    description: record.title,
-    type: 'Record',
-    sentBy: {
-      name: `${record.creator.firstName} ${record.creator.lastName}`,
-      avatar: record.creator.avatar || '/images/avatar.png'
-    },
-    sentOn: new Date(record.createdAt).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }),
-    priority: record.priority || 'Med',
-    deadlines: new Date(record.createdAt).toLocaleDateString(),
-    status: record.status,
-    rejectedOn: record.status === 'rejected' ? new Date(record.updatedAt).toLocaleDateString() : undefined,
-    reason: record.rejectionReason || undefined
-  };
-};
-
-export const formatSpace = (space: Space): FormattedRecord => {
-  return {
-    key: space.id,
-    id: space.id,
-    description: space.name,
-    type: 'Space',
-    sentBy: {
-      name: space.owner ? `${space.owner.firstName} ${space.owner.lastName}` : 'Unknown User',
-      avatar: space.owner?.avatar || '/images/avatar.png'
-    },
-    sentOn: new Date(space.createdAt).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }),
-    priority: 'Med',
-    deadlines: new Date(space.createdAt).toLocaleDateString(),
-    status: space.status,
-    rejectedOn: space.status === 'rejected' ? new Date(space.updatedAt).toLocaleDateString() : undefined,
-    reason: space.rejectionReason || 'No reason provided'
-  };
-};
-
-export const formatCabinet = (cabinet: DocumentCabinet): FormattedCabinet => {
-  
-  return {
-    key: cabinet.id,
-    id: cabinet.id,
-    description: cabinet.name,
-    type: 'Cabinet',
-    sentBy: {
-      name: `${cabinet.createdBy.name}`,
-      avatar: cabinet.createdBy.avatar || '/images/avatar.png'
-    },
-    sentOn: new Date(cabinet.createdAt).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }),
-    priority: cabinet.priority || 'Med',
-    deadlines: new Date(cabinet.createdAt).toLocaleDateString(),
-    status: cabinet.status,
-    rejectedOn: cabinet.status === 'rejected' ? new Date(cabinet.createdAt).toLocaleDateString() : 'undefined',
-    reason: cabinet.rejectionReason || undefined
-  };
-};
-
-export const formatSpaceAsPendingApproval = (space: Space): PendingApproval => {
-  return {
-    key: space.id,
-    id: space.id,
-    description: `Space: ${space.name || 'Unnamed Space'}`,
-    reference: space.id ? space.id.slice(0, 8) : 'N/A',
-    priority: 'Medium',
-    date: space.createdAt
-      ? new Date(space.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-      : 'N/A',
-    deadline: space.updatedAt
-      ? new Date(space.updatedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-      : 'N/A',
-    sentBy: {
-      name: space.owner ? `${space.owner.firstName || 'Unknown'} ${space.owner.lastName || 'User'}` : 'Unknown User',
-      avatar: space.owner?.avatar || '/images/avatar.png'
-    }
-  };
-};
-
-export const formatRecordAsPendingApproval = (record: DocumentRecord): PendingApproval => {
-  return {
-    key: record.id,
-    id: record.id,
-    description: record.title,
-    reference: record.id.slice(0, 8),
-    priority: record.priority || 'Medium',
-    date: new Date(record.createdAt).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }),
-    deadline: new Date(record.updatedAt).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }),
-    sentBy: {
-      name: `${record.creator.firstName} ${record.creator.lastName}`,
-      avatar: record.creator.avatar || '/images/avatar.png'
-    }
-  };
-};
-
-export const formatApprovalRequest = (item: ApprovalRequest): FormattedRecord => {
-  return {
-    key: item.id,
-    id: item.id,
-    description:
-      item.type === 'cabinet'
-        ? `New cabinet creation request: ${item.name}`
-        : item.type === 'space'
-        ? `New space creation request: ${item.name}`
-        : `New request: ${item.name}`,
-    type: item.type.charAt(0).toUpperCase() + item.type.slice(1),
-    sentBy: {
-      name: item.createdBy.name || 'Unknown',
-      avatar: item.createdBy.avatar || '/images/avatar.png'
-    },
-    sentOn: new Date(item.createdAt).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }),
-    priority: item.priority || 'Med',
-    deadlines: new Date(item.createdAt).toLocaleDateString(),
-    status: item.status || 'pending'
-  };
-};
-
-export const formatCabinetAsPendingApproval = (cabinet: any): PendingApproval => {
-  return {
-    key: cabinet.id,
-    id: cabinet.id,
-    description: `Cabinet: ${cabinet.name}`,
-    reference: cabinet.id.slice(0, 8),
-    priority: cabinet.priority || 'Med',
-    date: new Date(cabinet.createdAt).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }),
-    deadline: new Date(cabinet.createdAt).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }),
-    sentBy: {
-      name: cabinet.createdBy?.name || 'Unknown User',
-      avatar: cabinet.createdBy?.avatar || '/images/avatar.png'
-    }
-  };
 };
 
 export const fetchSuperUsers = async (): Promise<User[]> => {
@@ -1057,14 +719,78 @@ export const getTemplateDetailsForUser = async (id: string): Promise<SavedTempla
         if (!response) {
             throw new Error('API returned no response when fetching pending review letters.');
         }
-        return response; // Assuming the backend returns an array of letter objects
+        return response;
     } catch (error) {
         console.error('Error in getLettersPendingMyReview:', error);
         const errorMsg = axios.isAxiosError(error) && error.response?.data?.error
             ? error.response.data.error
             : error instanceof Error ? error.message : 'Mənim təsdiqimi gözləyən məktubları yükləyərkən xəta baş verdi.';
-        message.error(errorMsg); // Show error to the user
-        throw new Error(errorMsg); // Re-throw for component handling if needed
+        message.error(errorMsg);
+        throw new Error(errorMsg);
+    }
+  };
+
+  export enum LetterWorkflowStatus {
+    DRAFT = 'draft',
+    PENDING_REVIEW = 'pending_review',
+    PENDING_APPROVAL = 'pending_approval',
+    APPROVED = 'approved',
+    REJECTED = 'rejected'
+  }
+  interface PendingLetter {
+    id: string;
+    name: string | null;
+    workflowStatus: LetterWorkflowStatus; // Use the enum
+    createdAt: string;
+    updatedAt: string;
+    originalPdfFileId: string | null;
+    template?: { id: string; name: string | null };
+    user?: {
+        id: string;
+        firstName: string | null;
+        lastName: string | null;
+        email: string;
+    };
+    letterActionLogs?: Array<{ comment: string | null; createdAt: string }> | null;
+  }
+
+  export const getLettersPendingMyAction = async (): Promise<PendingLetter[]> => { // Use the correct PendingLetter type if defined
+    try {
+        // Call the NEW or MODIFIED backend endpoint that returns BOTH types
+        console.log('API Call: GET /letters/pending-my-action'); // Or your chosen endpoint
+        const response = await typedApi.get('/letters/pending-my-action'); // <-- CHANGE ENDPOINT HERE
+
+        if (!response) {
+            throw new Error('API returned no response when fetching pending action letters.');
+        }
+        // Ensure the response matches the PendingLetter[] type expected by InboxPage
+        return response as PendingLetter[];
+    } catch (error) {
+        console.error('Error in getLettersPendingMyAction:', error);
+        const errorMsg = axios.isAxiosError(error) && error.response?.data?.error
+            ? error.response.data.error
+            : error instanceof Error ? error.message : 'Mənim təsdiqimi/nəzərdən keçirməmi gözləyən məktubları yükləyərkən xəta baş verdi.'; // Updated error message
+        message.error(errorMsg);
+        throw new Error(errorMsg);
+    }
+};
+
+  export const getMyRejectedLettersApi = async (): Promise<any[]> => {
+    try {
+        console.log('API Call: GET /letters/my-rejected');
+        const response = await typedApi.get('/letters/my-rejected');
+        console.log('API Response (my-rejected):', response);
+        if (!response) {
+            throw new Error('API returned no response when fetching rejected review letters.');
+        }
+        return response;
+    } catch (error) {
+        console.error('Error in my-rejected:', error);
+        const errorMsg = axios.isAxiosError(error) && error.response?.data?.error
+            ? error.response.data.error
+            : error instanceof Error ? error.message : 'Mənim rejected gözləyən məktubları yükləyərkən xəta baş verdi.';
+        message.error(errorMsg);
+        throw new Error(errorMsg);
     }
   };
 

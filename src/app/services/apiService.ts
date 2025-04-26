@@ -2,54 +2,29 @@ import axios from 'axios';
 import { message } from 'antd';
 import { API_URL } from '@/app/config/index';
 
-
 class ApiService {
-
-  private getAuthHeaders() {
-    const token = localStorage.getItem('access_token_w');
-    return {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    };
-  }
+  // Remove getAuthHeaders and getAuthToken, always use cookies
 
   async performSearch(params: { page?: number; type?: string; query?: string; criteria?: any }) {
     try {
-      const response = await axios.post(`${API_URL}/search`, params, this.getAuthHeaders());
+      // Use axios withCredentials to send cookies
+      const response = await axios.post(`${API_URL}/search`, params, { withCredentials: true });
       return response.data;
     } catch (error) {
       throw error;
     }
   }
-  
 
-
-  private getAuthToken() {
-    return localStorage.getItem('access_token_w');
-  }
-
-  private isAuthenticated() {
-    const token = this.getAuthToken();
-    return !!token && token !== 'undefined' && token !== 'null';
-  }
+  // Remove isAuthenticated check based on localStorage
 
   private async apiCall(endpoint: string, options: RequestInit = {}) {
-    const token = this.getAuthToken();
-    if (!token) {
-      console.warn('No auth token found');
-      throw new Error('Authentication required');
-    }
-    
+    // Always send credentials (cookies)
     const defaultOptions: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.trim()}`
       },
-      credentials: 'include'
+      credentials: 'include',
     };
-
     const requestOptions = {
       ...defaultOptions,
       ...options,
@@ -58,12 +33,11 @@ class ApiService {
         ...(options.headers || {})
       }
     };
-
     const response = await fetch(`${API_URL}${endpoint}`, requestOptions);
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
         console.error('Authentication error. Please login again.');
-        localStorage.removeItem('access_token_w');
+        // No need to clear localStorage, just redirect or handle as needed
         throw new Error('Authentication failed. Please login again.');
       }
       throw new Error(`API call failed: ${response.statusText}`);
@@ -72,13 +46,12 @@ class ApiService {
   }
 
   async directFetch(endpoint: string, options: RequestInit = {}) {
-    const token = this.getAuthToken();
+    // Always send credentials (cookies)
     const defaultOptions: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
       },
-      credentials: 'include'
+      credentials: 'include',
     };
     const requestOptions = {
       ...defaultOptions,
@@ -93,10 +66,6 @@ class ApiService {
 
   async fetchSpaces() {
     try {
-      if (!this.isAuthenticated()) {
-        console.warn('User not authenticated when fetching spaces');
-        return [];
-      }
       return await this.apiCall('/spaces');
     } catch (error) {
       message.error('Failed to load spaces');
@@ -106,10 +75,6 @@ class ApiService {
 
   async fetchApprovedCabinets(spaceId: string) {
     try {
-      if (!this.isAuthenticated()) {
-        console.warn('User not authenticated when fetching approved cabinets');
-        return [];
-      }
       return await this.apiCall(`/cabinets/approved?spaceId=${spaceId}`);
     } catch (error) {
       message.error(`Failed to load cabinets for space ${spaceId}`);
@@ -119,10 +84,6 @@ class ApiService {
 
   async fetchCabinetDetails(cabinetId: string) {
     try {
-      if (!this.isAuthenticated()) {
-        console.warn('User not authenticated when fetching cabinet details');
-        return null;
-      }
       return await this.apiCall(`/cabinets/${cabinetId}`);
     } catch (error) {
       message.error(`Failed to load details for cabinet ${cabinetId}`);
@@ -132,10 +93,6 @@ class ApiService {
 
   async fetchUsers() {
     try {
-      if (!this.isAuthenticated()) {
-        console.warn('User not authenticated when fetching users');
-        return [];
-      }
       return await this.apiCall('/spaces/available-users');
     } catch (error) {
       message.error('Failed to load users');
@@ -145,21 +102,8 @@ class ApiService {
 
   async fetchAllSearchData() {
     try {
-      if (!this.isAuthenticated()) {
-        console.warn('User not authenticated when fetching search data');
-        return {
-          spaces: [],
-          cabinets: [],
-          fieldNames: [],
-          companies: [],
-          tags: [],
-          users: []
-        };
-      }
-      
       // Spaces əldə edilir
       const spaces = await this.fetchSpaces();
-      
       // Hər space üçün approved cabinetlər
       const cabinetPromises = spaces.map((space: any) =>
         this.fetchApprovedCabinets(space.id).catch(err => {
@@ -171,7 +115,6 @@ class ApiService {
       const allCabinets = cabinetResults.flat().filter((cabinet: any) =>
         cabinet && cabinet.status === 'approved'
       );
-      
       // Cabinet detalları
       const cabinetDetailPromises = allCabinets.map((cabinet: any) =>
         this.fetchCabinetDetails(cabinet.id).catch(err => {
@@ -180,7 +123,6 @@ class ApiService {
         })
       );
       const cabinetDetails = await Promise.all(cabinetDetailPromises);
-      
       // Field names (cabinet.customFields varsa)
       const allFieldNames = new Set<string>();
       cabinetDetails.forEach(cabinet => {
@@ -193,7 +135,6 @@ class ApiService {
         }
       });
       const fieldNames = Array.from(allFieldNames).sort();
-      
       // Company names (həm spaces, həm də cabinets)
       const companySet = new Set<string>();
       spaces.forEach((space: any) => {
@@ -207,7 +148,6 @@ class ApiService {
         }
       });
       const companies = Array.from(companySet).sort();
-      
       // Tags (həm spaces, həm də cabinets)
       const tagsSet = new Set<string>();
       spaces.forEach((space: any) => {
@@ -229,10 +169,8 @@ class ApiService {
         }
       });
       const tags = Array.from(tagsSet).sort();
-      
       // İstifadəçilər
       const users = await this.fetchUsers();
-      
       return {
         spaces,
         cabinets: allCabinets,
@@ -255,21 +193,13 @@ class ApiService {
     }
   }
 
- 
   async testDirectSearch(searchText: string) {
     try {
-      if (!this.isAuthenticated()) {
-        console.warn('User not authenticated when testing direct search');
-        return { records: [], count: 0 };
-      }
-      
       console.log(`Testing direct search with text: "${searchText}"`);
       const response = await this.directFetch(`/search/direct-text-search?text=${encodeURIComponent(searchText)}`);
-      
       if (!response.ok) {
         throw new Error('Direct search test failed');
       }
-      
       const data = await response.json();
       console.log('Direct search test results:', data);
       return data;
@@ -279,10 +209,7 @@ class ApiService {
       return { records: [], count: 0 };
     }
   }
-
-  checkAuthStatus() {
-    return this.isAuthenticated();
-  }
+  // Remove checkAuthStatus and isAuthenticated
 }
 
 export const apiService = new ApiService();

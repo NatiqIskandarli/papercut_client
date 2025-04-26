@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Button } from 'antd';
 import { DoubleRightOutlined, DoubleLeftOutlined, DownOutlined, RightOutlined, StarOutlined, CompassOutlined,HomeOutlined, InboxOutlined, TeamOutlined, SettingOutlined, 
   SearchOutlined, UserAddOutlined, FolderOutlined, ImportOutlined,
-  PlusCircleOutlined, } from '@ant-design/icons';
+  PlusCircleOutlined, EditOutlined, MailOutlined, FolderOpenOutlined, ShareAltOutlined } from '@ant-design/icons';
 
 import '@/styles/Sidebar.css';
 import { usePathname } from 'next/navigation';
@@ -86,25 +86,25 @@ const Sidebar = () => {
                 </li>
                 <li>
                   <Link href='/dashboard/MyStaff'>
-                    <FolderOutlined />
+                    <TeamOutlined />
                     <span className={collapsed ? 'hidden' : ''}> My Staff</span>
                   </Link>
                 </li>
                 <li>
                   <Link href='/dashboard/Trash'>
-                    <FolderOutlined />
+                    <ImportOutlined />
                     <span className={collapsed ? 'hidden' : ''}> Trash / Deleted</span>
                   </Link>
                 </li>
                 <li>
                   <Link href='/dashboard/Signatures'>
-                    <FolderOutlined />
+                    <EditOutlined />
                     <span className={collapsed ? 'hidden' : ''}> Signatures</span>
                   </Link>
                 </li>
                 <li>
                   <Link href='/dashboard/Stamps'>
-                    <FolderOutlined />
+                    <CompassOutlined />
                     <span className={collapsed ? 'hidden' : ''}> Stamps</span>
                   </Link>
                 </li>
@@ -132,23 +132,25 @@ const Sidebar = () => {
                     <ul>
                       <li>
                         <Link href='/dashboard/CreateForm'>
-                          <PlusCircleOutlined />
+                          <EditOutlined />
                           <span className={collapsed ? 'hidden' : ''}> Create Template</span>
                         </Link>
                       </li>
                       <li>
                         <Link href='/dashboard/CreateLetter'>
-                          <PlusCircleOutlined />
+                          <MailOutlined />
                           <span className={collapsed ? 'hidden' : ''}> Submit Letter</span>
                         </Link>
                       </li>                 
                       <li>
                         <Link href='/dashboard/Templates/Created'>
+                          <FolderOpenOutlined />
                           <span className={collapsed ? 'hidden' : ''}> Created</span>
                         </Link>
                       </li>
                       <li>
                         <Link href='/dashboard/Templates/Shared'>
+                          <ShareAltOutlined />
                           <span className={collapsed ? 'hidden' : ''}> Shared</span>
                         </Link>
                       </li>

@@ -38,33 +38,12 @@ const UserManagementPage = () => {
   const [addUserForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
-  const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token_w') : null;
-    if (!token) {
-        console.error("Authentication token not found.");
-        setError("Authentication token not found. Please log in again.");
-        return undefined;
-    }
-    return {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      }
-    };
-  };
-
   const fetchUsers = async () => {
     setLoading(true);
     setError(null);
-    const config = getAuthHeaders();
-    if (!config) {
-        setLoading(false);
-        return;
-    }
 
     try {
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/list`, config);
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/users/list`, { withCredentials: true });
       console.log('API Response Data:', response.data);
 
       if (response.data && Array.isArray(response.data.users)) {
@@ -148,11 +127,6 @@ const UserManagementPage = () => {
   const handleAddUserSubmit = async (values: any) => {
     setLoading(true);
     setError(null);
-    const config = getAuthHeaders();
-     if (!config) {
-        setLoading(false);
-        return;
-    }
 
     try {
       const response = await axios.post(
@@ -164,7 +138,7 @@ const UserManagementPage = () => {
             role: values.role,
             position: values.position || undefined, // Add position field
         },
-        config
+        { withCredentials: true }
       );
 
       if (response.status === 201 || response.status === 200) {
@@ -194,11 +168,6 @@ const UserManagementPage = () => {
         const values = await editForm.validateFields();
         setLoading(true);
         setError(null);
-        const config = getAuthHeaders();
-        if (!config) {
-            setLoading(false);
-            return;
-        }
 
         const updateData = {
             firstName: values.firstName,
@@ -212,7 +181,7 @@ const UserManagementPage = () => {
         const response = await axios.put(
             `${process.env.NEXT_PUBLIC_API_URL}/users/${selectedUser.key}`,
             updateData,
-            config
+            { withCredentials: true }
         );
 
         if (response.status === 200) {
@@ -245,16 +214,11 @@ const UserManagementPage = () => {
       onOk: async () => {
         setLoading(true);
         setError(null);
-        const config = getAuthHeaders();
-        if (!config) {
-            setLoading(false);
-            return;
-        }
 
         try {
           const response = await axios.delete(
             `${process.env.NEXT_PUBLIC_API_URL}/users/${record.key}`,
-            config
+            { withCredentials: true }
           );
 
           if (response.status === 200 || response.status === 204) {

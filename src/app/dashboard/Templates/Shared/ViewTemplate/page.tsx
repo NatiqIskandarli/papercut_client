@@ -58,22 +58,17 @@ const templateFields: TemplateField[] = fieldMappings.map(mapping => ({
 
 // API Functions
 const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token_w') : null;
-    if (!token) return undefined;
     return {
         headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-        }
+        },
+        withCredentials: true,
     };
 };
 
-
-
 async function fetchSharedTemplateById(templateId: string): Promise<TemplateData> {
     const config = getAuthHeaders();
-    if (!config) throw new Error('Autentifikasiya tələb olunur.');
     const response = await axios.get(`${API_URL}/templates/${templateId}/shared`, config);
     return response.data;
 }

@@ -72,33 +72,28 @@ const templateFields: TemplateField[] = fieldMappings.map(mapping => ({
 }));
 
 const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token_w') : null;
-    if (!token) return undefined;
     return {
         headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-        }
+        },
+        withCredentials: true,
     };
 };
 
 async function fetchTemplateById(id: string): Promise<TemplateData> {
      const config = getAuthHeaders();
-     if (!config) throw new Error('Autentifikasiya tələb olunur.');
      const response = await axios.get(`${API_URL}/templates/${id}`, config);
      return response.data;
 }
 
 async function deleteTemplateApi(id: string): Promise<void> {
     const config = getAuthHeaders();
-    if (!config) throw new Error('Autentifikasiya tələb olunur.');
     await axios.delete(`${API_URL}/templates/${id}`, config);
 }
 
 async function fetchReviewers(templateId: string): Promise<ReviewerUser[]> {
     const config = getAuthHeaders();
-    if (!config) throw new Error('Autentifikasiya tələb olunur.');
     try {
         const response = await axios.get(`${API_URL}/templates/${templateId}/reviewers`, config);
         console.log("Template-specific reviewers response:", response.data);
@@ -115,7 +110,6 @@ async function fetchReviewers(templateId: string): Promise<ReviewerUser[]> {
 
 async function fetchAllUsersApi(): Promise<ReviewerUser[]> {
     const config = getAuthHeaders();
-    if (!config) throw new Error('Autentifikasiya tələb olunur.');
     try {
         const response = await axios.get(`${API_URL}/users/list`, config);
         console.log("All users response:", response.data);
@@ -136,20 +130,17 @@ async function fetchAllUsersApi(): Promise<ReviewerUser[]> {
 
 async function updateReviewers(templateId: string, reviewerUserIds: string[]): Promise<void> {
     const config = getAuthHeaders();
-    if (!config) throw new Error('Autentifikasiya tələb olunur.');
     await axios.put(`${API_URL}/templates/${templateId}/reviewers`, { reviewerUserIds }, config);
 }
 
 async function shareTemplateApi(templateId: string, userIds: string[]): Promise<void> {
     console.log(`Sharing template ${templateId} with users: ${userIds.join(', ')}`);
     const config = getAuthHeaders();
-    if (!config) throw new Error('Autentifikasiya tələb olunur.');
     await axios.post(`${API_URL}/templates/${templateId}/share`, { userIds }, config);
 }
 
 async function fetchShareHistoryApi(templateId: string): Promise<ShareHistoryEntry[]> {
     const config = getAuthHeaders();
-    if (!config) throw new Error('Autentifikasiya tələb olunur.');
     try {
         const response = await axios.get(`${API_URL}/templates/${templateId}/share-history`, config);
         return response.data || [];
@@ -161,7 +152,6 @@ async function fetchShareHistoryApi(templateId: string): Promise<ShareHistoryEnt
 
 async function deleteShareRecordApi(shareId: string): Promise<void> {
     const config = getAuthHeaders();
-    if (!config) throw new Error('Autentifikasiya tələb olunur.');
     await axios.delete(`${API_URL}/templates/shares/${shareId}`, config);
 }
 

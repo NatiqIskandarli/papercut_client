@@ -47,8 +47,8 @@ const MyStaffPage = () => {
     setLoading(true);
     try {
       const response = await fetch(`${API_URL}/letters`, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
           'Content-Type': 'application/json'
         },
       });

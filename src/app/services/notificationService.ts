@@ -17,12 +17,11 @@ export interface Notification {
 
 class NotificationService {
   private getAuthHeaders() {
-    const token = localStorage.getItem('access_token_w');
     return {
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
-      }
+      },
+      withCredentials: true
     };
   }
 
@@ -123,4 +122,4 @@ class NotificationService {
   }
 }
 
-export const notificationService = new NotificationService(); 
+export const notificationService = new NotificationService();

@@ -140,9 +140,6 @@ const ReassignModal: React.FC<ReassignModalProps> = ({ visible, onCancel, onOk, 
   const fetchApprovers = async () => {
     try {
       const response = await fetch(`${API_URL}/users/superusers`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`
-        },
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch approvers');
@@ -214,9 +211,6 @@ const RecordDetailsPage = ({ params }: { params: { id: string } }) => {
   const fetchCurrentUser = async () => {
     try {
       const response = await fetch(`${API_URL}/users/me`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`
-        },
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch user');
@@ -230,9 +224,6 @@ const RecordDetailsPage = ({ params }: { params: { id: string } }) => {
   const fetchRecord = async () => {
     try {
       const response = await fetch(`${API_URL}/records/${params.id}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`
-        },
         credentials: 'include'
       });
       if (!response.ok) throw new Error('Failed to fetch record');
@@ -296,9 +287,7 @@ const RecordDetailsPage = ({ params }: { params: { id: string } }) => {
         formData.append('action', action);
       }
   
-      const headers: HeadersInit = {
-        'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`
-      };
+      const headers: HeadersInit = {};
       if (action === 'delete') {
         headers['Content-Type'] = 'application/json';
       }
@@ -341,7 +330,6 @@ const RecordDetailsPage = ({ params }: { params: { id: string } }) => {
       const response = await fetch(`${API_URL}/records/${params.id}/reassign`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ approverId, note }),
@@ -367,9 +355,6 @@ const RecordDetailsPage = ({ params }: { params: { id: string } }) => {
       const memberResponse = await fetch(
         `${API_URL}/cabinet-members/cabinets/${record.cabinet.id}/members/${currentUserId}`,
         {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`
-          },
           credentials: 'include'
         }
       );

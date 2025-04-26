@@ -170,9 +170,6 @@ const Approvals = ({ className }) => {
   const fetchSuperUsers = async () => {
     try {
       const response = await fetch(`${API_URL}/users/superusers`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
-        },
         credentials: 'include'
       });
 
@@ -200,7 +197,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/cabinets/${record.id}/approve`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include'
@@ -209,7 +205,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${API_URL}/approvals/${record.id}/approve`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include',
@@ -222,7 +217,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${API_URL}/records/${record.id}/approve`, {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({ 
@@ -266,7 +260,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${API_URL}/cabinets/${selectedRecord.id}/reassign`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include',
@@ -279,7 +272,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${API_URL}/spaces/${selectedRecord.id}/reassign`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include',
@@ -292,7 +284,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${API_URL}/records/${selectedRecord.id}/reassign`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include',
@@ -340,7 +331,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${API_URL}/cabinets/${selectedRecord.id}/reject`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include',
@@ -352,7 +342,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${API_URL}/approvals/${selectedRecord.id}/reject`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include',
@@ -365,7 +354,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${API_URL}/records/${selectedRecord.id}/reject`, {
           method: 'PUT',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include',

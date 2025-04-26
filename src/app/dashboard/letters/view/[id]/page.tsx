@@ -35,12 +35,8 @@ interface LetterDetail {
 }
 
 async function apiRequest<T>(endpoint: string, method: 'GET' | 'POST' = 'GET', body?: any): Promise<T> {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-    const config: RequestInit = { method, headers };
+    const config: RequestInit = { method, headers, credentials: 'include' };
     if (body && method === 'POST') {
         config.body = JSON.stringify(body);
     }

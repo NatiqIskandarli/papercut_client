@@ -42,11 +42,8 @@ const DashboardPaperCut = () => {
     const fetchDashboardStats = async () => {
       try {
         setLoading(true);
-        const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
-        const response = await axios.get(`${API_URL}/dashboard/stats`,{
-          headers: {
-            'Authorization': `Bearer ${token || ''}`
-          }
+        const response = await axios.get(`${API_URL}/dashboard/stats`, {
+          withCredentials: true
         });
         
         // Update stats with real data

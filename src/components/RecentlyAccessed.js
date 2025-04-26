@@ -82,12 +82,9 @@ const RecentlyAccessed = ({ className }) => {
   const fetchActivities = useCallback(async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('access_token_w');
-      if (!token) throw new Error('No authentication token found');
 
       const response = await fetch(`${API_URL}/activities/recent`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include'

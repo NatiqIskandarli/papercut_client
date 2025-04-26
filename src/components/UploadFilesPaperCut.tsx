@@ -26,10 +26,8 @@ type UppyBody = Record<string, unknown>
 interface UserOption { value: string; label: string }
 
 async function apiRequest<T>(endpoint: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', body?: any): Promise<T> {
-    const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null
     const headers: HeadersInit = { 'Content-Type': 'application/json' }
-    if (token) headers['Authorization'] = `Bearer ${token}`
-    const config: RequestInit = { method, headers }
+    const config: RequestInit = { method, headers, credentials: 'include' }
     if (body) config.body = JSON.stringify(body)
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}${endpoint}`, config)
     if (!response.ok) {
@@ -122,9 +120,7 @@ const UploadAndSignPdf: React.FC = () => {
                 fieldName: 'files',
                 bundle: false,
                 headers: () => {
-                    const token = window.localStorage.getItem('access_token_w')
                     const h: Record<string, string> = {}
-                    if (token) h.Authorization = `Bearer ${token}`
                     return h
                 }
             })

@@ -54,23 +54,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem('access_token_w');
-      if (token) {
-        const response = await fetch(`${API_URL}/auth/verify`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const response = await fetch(`${API_URL}/auth/verify`, {
+        credentials: 'include',
+      });
 
-        if (response.ok) {
-          const data = await response.json();
-          setUser(data.user);
-        } else {
-          // If token is invalid, clear everything
-          localStorage.removeItem('access_token_w');
-          localStorage.removeItem('refresh_token_w');
-          Cookies.remove('access_token_w');
-        }
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      } else {
+        // If token is invalid, clear everything
+        Cookies.remove('access_token_w');
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -85,14 +78,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
         twoFactorToken,
+      }, {
+        withCredentials: true,
       });
 
       const { data } = response;
 
       if (!data.requiresTwoFactor) {
-        // Set token in localStorage before updating user state
-        localStorage.setItem('access_token_w', data.accessToken);
-        // Set cookie as well for additional security
+        // Set cookie for additional security
         Cookies.set('access_token_w', data.accessToken);
         
         setUser(data.user);
@@ -107,7 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token_w');
     Cookies.remove('access_token_w');
     setUser(null);
   };

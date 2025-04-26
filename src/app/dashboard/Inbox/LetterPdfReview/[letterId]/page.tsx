@@ -19,10 +19,8 @@ import axios from 'axios';
 
 
 async function apiRequest<T = any>(endpoint: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', body?: any): Promise<T> {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token_w') : null;
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) { headers['Authorization'] = `Bearer ${token}`; }
-    const config: RequestInit = { method, headers };
+    const config: RequestInit = { method, headers, credentials: 'include' };
     if (body) { config.body = JSON.stringify(body); }
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}${endpoint}`, config);
     if (!response.ok) {
@@ -302,7 +300,7 @@ export default function LetterPdfReviewPage() {
             message.loading({ content: 'Generating signed PDF...', key: 'resubmit-action', duration: 0 });
 
             try {
-                const response = await fetch(processingPdfUrl!);
+                const response = await fetch(processingPdfUrl!, { credentials: 'include' });
                 const pdfBytes = await response.arrayBuffer();
                 const pdfDoc = await PDFDocument.load(pdfBytes);
                 const pages = pdfDoc.getPages();
@@ -311,7 +309,7 @@ export default function LetterPdfReviewPage() {
                     if (item.pageNumber < 1 || item.pageNumber > pages.length) continue;
                     let imageBytes: Buffer | null = null;
                     try {
-                        const imgResponse = await axios.get(item.url, { responseType: 'arraybuffer' });
+                        const imgResponse = await axios.get(item.url, { responseType: 'arraybuffer', withCredentials: true });
                         imageBytes = Buffer.from(imgResponse.data);
                     } catch (fetchError: any) { console.warn(`Skipping placement (fetch error): ${item.url}`); continue; }
                     if (!imageBytes) continue;
@@ -342,13 +340,9 @@ export default function LetterPdfReviewPage() {
                 const signedFilename = `${originalNameNoExt}-signed-${Date.now()}.pdf`;
                 formData.append('files', blob, signedFilename);
 
-                 const token = typeof window !== 'undefined' ? localStorage.getItem('access_token_w') : null;
-                 const uploadHeaders: HeadersInit = {};
-                 if (token) { uploadHeaders['Authorization'] = `Bearer ${token}`; }
-
                  const uploadResponse = await fetch(`${API_BASE_URL}/files/upload`, {
                      method: 'POST',
-                     headers: uploadHeaders,
+                     credentials: 'include',
                      body: formData,
                  });
 

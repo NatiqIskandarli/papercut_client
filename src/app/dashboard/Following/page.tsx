@@ -22,10 +22,8 @@ const FollowingPage = () => {
   useEffect(() => {
     const fetchFollowedCabinets = async () => {
       try {
-        const token = localStorage.getItem('access_token_w');
         const response = await fetch(`${API_URL}/cabinets/followedCabinets`, {
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include'

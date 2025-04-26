@@ -96,9 +96,6 @@ const Approvals = ({ className }) => {
   const fetchSuperUsers = async () => {
     try {
       const response = await fetch(`${API_URL}/users/superusers`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
-        },
         credentials: 'include'
       });
 
@@ -122,7 +119,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${API_URL}/approvals/${record.id}/approve`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include',
@@ -166,7 +162,6 @@ const Approvals = ({ className }) => {
         response = await fetch(`${API_URL}/approvals/${selectedRecord.id}/reject`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('access_token_w')}`,
             'Content-Type': 'application/json'
           },
           credentials: 'include',

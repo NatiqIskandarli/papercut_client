@@ -51,13 +51,8 @@ function TemplateFormApp({ children }: TemplateFormAppProps) {
         const fetchReferences = async () => { 
             setIsLoadingReferences(true); setReferenceError(null); 
             try { 
-                const token = localStorage.getItem('access_token_w'); 
-                const headers: HeadersInit = { 'Content-Type': 'application/json' }; 
-                if (token) { 
-                    headers['Authorization'] = `Bearer ${token}`; 
-                } 
                 console.log(`${API_URL}/references`);
-                const res = await fetch(`${API_URL}/references`, { headers }); 
+                const res = await fetch(`${API_URL}/references`, { credentials: 'include' }); 
                 console.log(res);
                 if (!res.ok) { 
                     console.log(res);

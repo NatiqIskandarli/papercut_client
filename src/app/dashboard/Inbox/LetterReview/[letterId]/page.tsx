@@ -12,10 +12,8 @@ import axios from 'axios';
 
 // --- Helper: API Request Function (Copied from LetterPdfReviewPage) ---
 async function apiRequest<T = any>(endpoint: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', body?: any): Promise<T> {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token_w') : null;
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) { headers['Authorization'] = `Bearer ${token}`; }
-    const config: RequestInit = { method, headers };
+    const config: RequestInit = { method, headers, credentials: 'include' };
     if (body) { config.body = JSON.stringify(body); }
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}${endpoint}`, config);
     if (!response.ok) {

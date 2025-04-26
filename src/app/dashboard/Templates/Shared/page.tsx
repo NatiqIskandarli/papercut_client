@@ -21,12 +21,11 @@ interface SharedTemplateData {
 }
 
 async function fetchSharedTemplates(): Promise<SharedTemplateData[]> {
-    const token = localStorage.getItem('access_token_w');
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) { headers['Authorization'] = `Bearer ${token}`; }
-    else { throw new Error('Autentifikasiya tələb olunur. Zəhmət olmasa, daxil olun.'); }
-
-    const res = await fetch(`${API_URL}/templates/shared-with-me`, { method: 'GET', headers });
+    const res = await fetch(`${API_URL}/templates/shared-with-me`, { 
+        method: 'GET', 
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+    });
 
     if (!res.ok) {
         const errorData = await res.json().catch(() => ({ message: res.statusText }));

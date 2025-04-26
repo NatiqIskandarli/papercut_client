@@ -55,10 +55,8 @@ const UploadFiles = ({ onRecordCreated, onFilesUploaded }) => {
       formData: true,
       fieldName: 'files',
       bundle: true,
-      // Get the authentication token safely
-      headers: {
-        'Authorization': `Bearer ${typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') || '' : ''}`
-      },
+      // Remove token usage for authentication
+      // Use fetch/axios with credentials: 'include' for all requests
       allowedMetaFields: ['originalName'] // Updated from metaFields to allowedMetaFields
     });
 
@@ -138,10 +136,8 @@ const UploadFiles = ({ onRecordCreated, onFilesUploaded }) => {
   const fetchSpaces = async () => {
     try {
       setLoadingSpaces(true);
-      const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/spaces`, {
         headers: {
-          'Authorization': `Bearer ${token || ''}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include'
@@ -166,10 +162,8 @@ const UploadFiles = ({ onRecordCreated, onFilesUploaded }) => {
   const fetchCabinetsBySpace = async (spaceId) => {
     try {
       setLoading(true);
-      const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/cabinets/approved?spaceId=${spaceId}`, {
         headers: {
-          'Authorization': `Bearer ${token || ''}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include'
@@ -193,11 +187,8 @@ const UploadFiles = ({ onRecordCreated, onFilesUploaded }) => {
   // Fetch all cabinets
   const fetchCabinets = async () => {
     try {
-      const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/cabinets`, {
-        headers: {
-          'Authorization': `Bearer ${token || ''}`
-        }
+        credentials: 'include'
       });
       
       if (response.ok) {
@@ -215,12 +206,8 @@ const UploadFiles = ({ onRecordCreated, onFilesUploaded }) => {
   const fetchUnallocatedFiles = async () => {
     try {
       setLoading(true);
-      // Safe access to localStorage
-      const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/files/unallocated`, {
-        headers: {
-          'Authorization': `Bearer ${token || ''}`
-        }
+        credentials: 'include'
       });
       
       if (response.ok) {
@@ -246,12 +233,8 @@ const UploadFiles = ({ onRecordCreated, onFilesUploaded }) => {
   const fetchCabinetFields = async (cabinetId) => {
     try {
       setLoading(true);
-      // Safe access to localStorage
-      const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/cabinets/${cabinetId}`, {
-        headers: {
-          'Authorization': `Bearer ${token || ''}`
-        }
+        credentials: 'include'
       });
       
       if (response.ok) {
@@ -275,14 +258,12 @@ const UploadFiles = ({ onRecordCreated, onFilesUploaded }) => {
   const extractFieldsFromFile = async (fileId) => {
     try {
       setLoading(true);
-      // Safe access to localStorage
-      const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/files/extract-fields/${fileId}`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token || ''}`,
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
       
       if (response.ok) {
@@ -377,14 +358,12 @@ const UploadFiles = ({ onRecordCreated, onFilesUploaded }) => {
       setLoading(true);
       
       // If files are already uploaded and we have their IDs, mark them as unallocated
-      // Safe access to localStorage
-      const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/files/unallocated/save`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token || ''}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({
           fileIds: uploadedFiles.map(file => file.id)
         })
@@ -429,10 +408,8 @@ const UploadFiles = ({ onRecordCreated, onFilesUploaded }) => {
   const handleCabinetSelect = async (cabinetId) => {
     try {
       setLoading(true);
-      const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/cabinets/${cabinetId}`, {
         headers: {
-          'Authorization': `Bearer ${token || ''}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include'
@@ -491,16 +468,12 @@ const UploadFiles = ({ onRecordCreated, onFilesUploaded }) => {
         fileIds: fileIds // Support for multiple files
       };
       
-      // Safe access to localStorage
-      const token = typeof window !== 'undefined' ? window.localStorage.getItem('access_token_w') : null;
-      
-      // Use the with-files endpoint to properly handle multiple files stored in Cloudflare R2
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1'}/records/with-files`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token || ''}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify(recordData)
       });
       

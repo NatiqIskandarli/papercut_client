@@ -17,21 +17,12 @@ interface TemplateData {
 
 // API funksiyası (lazım gələrsə utils/api.ts faylına çıxarıla bilər)
 async function fetchUserTemplates(): Promise<TemplateData[]> {
-    const token = localStorage.getItem('access_token_w'); // Token-i local storage-dan götürürük
-    const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-    };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`; // Authorizasiya başlığını əlavə edirik
-    } else {
-        // Token yoxdursa, istifadəçini login səhifəsinə yönləndirmək daha yaxşıdır
-        // Amma hələlik xəta qaytaraq
-        throw new Error('Autentifikasiya tələb olunur. Zəhmət olmasa, daxil olun.');
-    }
-
     const res = await fetch(`${API_URL}/templates`, { // GET /api/templates endpointinə sorğu göndəririk
         method: 'GET',
-        headers,
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Authentication üçün credentials: 'include' istifadə edirik
      });
 
     if (!res.ok) {

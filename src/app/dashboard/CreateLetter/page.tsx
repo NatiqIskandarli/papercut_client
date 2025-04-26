@@ -683,28 +683,22 @@ export default function CreateLetterPage() {
         setIsSavingLetter(true);
         message.loading({ content: 'Məktub yadda saxlanılır...', key: 'savingLetter' });
         try {
-            // Payload includes the full formData (templateId, formData { core fields + URLs })
-            // Backend service is responsible for separating URLs if needed by the model
             const letterPayload = {
                 templateId: selectedTemplateId,
-                formData: formData, // Send the full formData including URLs
-                // name: 'Optional Letter Name', // You could add a name field if desired
+                formData: formData, 
             };
             const savedLetterData = await saveLetter(letterPayload);
             message.success({ content: `Məktub (ID: ${savedLetterData.id}) uğurla yadda saxlandı!`, key: 'savingLetter', duration: 3 });
 
-            // Reset state after successful save
             setSelectedTemplateId(null);
             setSelectedTemplate(null);
             setFormData({ company: '', date: new Date().toISOString().split('T')[0], customs: '', person: '', vendor: '', contract: '', value: '', mode: '', reference: '', invoiceNumber: '', cargoName: '', cargoDescription: '', documentType: '', importPurpose: '', requestPerson: '', requestDepartment: '', declarationNumber: '', quantityBillNumber: '', subContractorName: '', subContractNumber: '', logoUrl: null, signatureUrl: null, stampUrl: null });
-            // Optional: Redirect after save
-            // router.push('/dashboard/PaperCut/Letters');
 
         } catch (error: any) {
             console.error("Error saving letter:", error);
             let errorMsg = 'Məktubu yadda saxlayarkən naməlum xəta baş verdi.';
             if (axios.isAxiosError(error) && error.response?.data?.error) {
-                errorMsg = error.response.data.error; // Use backend error message if available
+                errorMsg = error.response.data.error; 
             } else if (error.message) {
                  errorMsg = error.message;
             }

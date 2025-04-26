@@ -93,6 +93,9 @@ export default function LetterPdfReviewPage() {
     const [isProcessingResubmit, setIsProcessingResubmit] = useState<boolean>(false);
     const [fileList, setFileList] = useState<UploadFile[]>([]);
 
+    const [pageDims, setPageDims] = useState<{[k:number]:{w:number,h:number}}>({})
+
+
     const pdfContainerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -445,87 +448,32 @@ export default function LetterPdfReviewPage() {
          setSelectedSignatureUrl(null);
      };
 
-     const handlePdfAreaClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (!isSigningMode || !placingItem || !pdfContainerRef.current) return;
-
-        const pdfWrapper = pdfContainerRef.current; // The scrollable container
-        const pageElement = pdfWrapper.querySelector('.react-pdf__Page') as HTMLElement; // The Page component's element
-
-        if (!pageElement) {
-            console.error("Could not find .react-pdf__Page element for coordinate calculation.");
-            return;
+     const handlePdfAreaClick=(e:React.MouseEvent<HTMLDivElement>)=>{
+        if(!isSigningMode||!placingItem) return
+        const pageEl=(e.target as HTMLElement).closest('.react-pdf__Page') as HTMLElement|null
+        if(!pageEl) return
+        const r=pageEl.getBoundingClientRect()
+        const clickX=e.clientX-r.left
+        const clickY=e.clientY-r.top
+        const xUnscaled=clickX/pdfScale
+        const yUnscaled=clickY/pdfScale
+        const finalX=xUnscaled-placingItem.width/2
+        const finalY=yUnscaled-placingItem.height/2
+        const newItem:PlacedItem={
+          id:uuidv4(),
+          type:placingItem.type,
+          url:placingItem.url,
+          pageNumber,
+          x:finalX,
+          y:finalY,
+          width:placingItem.width,
+          height:placingItem.height
         }
-
-        const wrapperRect = pdfWrapper.getBoundingClientRect(); // Container's position relative to viewport
-        const pageRect = pageElement.getBoundingClientRect();     // Scaled page's position relative to viewport
-
-        // 1. Click coordinates relative to the viewport
-        const clickX_viewport = event.clientX;
-        const clickY_viewport = event.clientY;
-
-        // 2. Click coordinates relative to the container's top-left corner
-        const clickX_container = clickX_viewport - wrapperRect.left;
-        const clickY_container = clickY_viewport - wrapperRect.top;
-
-        // 3. Click coordinates relative to the scaled page's top-left corner
-        //    Account for the container's scroll position
-        const clickX_onPage = clickX_container + pdfWrapper.scrollLeft - (pageRect.left - wrapperRect.left);
-        const clickY_onPage = clickY_container + pdfWrapper.scrollTop - (pageRect.top - wrapperRect.top);
-
-        // 4. Convert click coordinates to coordinates on the *unscaled* PDF page
-        const x_unscaled = clickX_onPage / pdfScale;
-        const y_unscaled = clickY_onPage / pdfScale;
-
-        // 5. Calculate the top-left position for the item (centered on the click point)
-        //    This is the position needed by pdf-lib's drawImage
-        const finalX = x_unscaled - (placingItem.width / 2);
-        const finalY = y_unscaled - (placingItem.height / 2);
-
-        console.groupCollapsed("Placement Calculation Debug");
-        console.log("PDF Scale:", pdfScale);
-        console.log("Wrapper Rect:", wrapperRect);
-        console.log("Page Rect:", pageRect);
-        console.log("Click Viewport:", { x: clickX_viewport, y: clickY_viewport });
-        console.log("Click Container Rel:", { x: clickX_container, y: clickY_container });
-        console.log("Container Scroll:", { scrollLeft: pdfWrapper.scrollLeft, scrollTop: pdfWrapper.scrollTop });
-        console.log("Page Offset in Container:", { left: pageRect.left - wrapperRect.left, top: pageRect.top - wrapperRect.top });
-        console.log("Click Scaled Page Rel:", { x: clickX_onPage, y: clickY_onPage });
-        console.log("Click Unscaled Page:", { x: x_unscaled, y: y_unscaled });
-        console.log("Item Dimensions:", { w: placingItem.width, h: placingItem.height });
-        console.log("Final Coords for pdf-lib (Unscaled):", { x: finalX, y: finalY });
-        console.groupEnd();
-
-
-        // --- Basic Boundary Check (optional but recommended) ---
-        // const { width: unscaledPageWidth, height: unscaledPageHeight } = pageElement.getBoundingClientRect(); // Get unscaled dimensions if possible or calculate from pageRect/pdfScale
-        // const calculatedUnscaledPageWidth = pageRect.width / pdfScale;
-        // const calculatedUnscaledPageHeight = pageRect.height / pdfScale;
-
-        // if (finalX < 0 || finalY < 0 || finalX + placingItem.width > calculatedUnscaledPageWidth || finalY + placingItem.height > calculatedUnscaledPageHeight) {
-        //     console.warn("Placement outside page boundaries detected, potentially adjusting.");
-        //     // Optionally adjust finalX/finalY or prevent placement
-        //     // finalX = Math.max(0, Math.min(finalX, calculatedUnscaledPageWidth - placingItem.width));
-        //     // finalY = Math.max(0, Math.min(finalY, calculatedUnscaledPageHeight - placingItem.height));
-        // }
-        // --- End Boundary Check ---
-
-
-        const newItem: PlacedItem = {
-            id: uuidv4(),
-            type: placingItem.type,
-            url: placingItem.url,
-            pageNumber: pageNumber, // Use the currently viewed page number
-            x: finalX,           // Unscaled X for pdf-lib
-            y: finalY,           // Unscaled Y for pdf-lib (calculated from top-left)
-            width: placingItem.width,
-            height: placingItem.height,
-        };
-
-        setPlacedItems(prevItems => [...prevItems, newItem]);
-        setPlacingItem(null);
-        setSelectedSignatureUrl(null);
-        setSelectedStampUrl(null);
-    };
+        setPlacedItems(p=>[...p,newItem])
+        setPlacingItem(null)
+        setSelectedSignatureUrl(null)
+        setSelectedStampUrl(null)
+      }
 
 
      const handleRemovePlacedItem = (itemId: string) => {
@@ -698,43 +646,41 @@ export default function LetterPdfReviewPage() {
                                          error={<Alert message="Error" description={pdfLoadError || "Could not load PDF document."} type="error" showIcon />}
                                          className="flex justify-center items-start"
                                      >
-                                         <Page
-                                             key={`page_${pageNumber}`}
-                                             pageNumber={pageNumber}
-                                             scale={pdfScale}
-                                             renderTextLayer={true}
-                                             renderAnnotationLayer={false}
-                                             className="shadow-lg"
-                                             loading={<div style={{ height: '500px' }}><Spin /></div>}
-                                             error={<div className="text-red-500">Failed to render page.</div>}
-                                         />
-                                         {isSigningMode && placedItems
-                                             .filter(item => item.pageNumber === pageNumber)
-                                             .map(item => (
-                                                 <Tooltip key={item.id} title="Click to remove">
-                                                     <img
-                                                         src={item.url}
-                                                         alt={item.type}
-                                                         style={{
-                                                             position: 'absolute',
-                                                             left: `${item.x * pdfScale}px`,
-                                                             top: `${item.y * pdfScale}px`,
-                                                             width: `${item.width * pdfScale}px`,
-                                                             height: `${item.height * pdfScale}px`,
-                                                             cursor: 'pointer',
-                                                             border: '1px dashed rgba(128, 128, 128, 0.7)',
-                                                             objectFit: 'contain',
-                                                             userSelect: 'none',
-                                                             transformOrigin: 'top left',
-                                                             zIndex: 10
-                                                         }}
-                                                         onClick={(e) => {
-                                                             e.stopPropagation();
-                                                             handleRemovePlacedItem(item.id);
-                                                         }}
-                                                     />
-                                                 </Tooltip>
-                                             ))}
+                                        <Page
+                                            key={`page_${pageNumber}_${pdfScale}`}
+                                            pageNumber={pageNumber}
+                                            scale={pdfScale}
+                                            onLoadSuccess={p => {
+                                                const v = p.getViewport({ scale: 1 });
+                                                setPageDims(d => ({ ...d, [pageNumber]: { w: v.width, h: v.height } }));
+                                            }}
+                                            renderTextLayer
+                                            renderAnnotationLayer={false}
+                                            className="shadow-lg"
+                                            loading={<div style={{ height: '500px' }}><Spin /></div>}
+                                        />
+                                        {isSigningMode && placedItems.filter(i => i.pageNumber === pageNumber).map(i => (
+                                            <Tooltip key={i.id} title="Click to remove">
+                                                <img
+                                                    src={i.url}
+                                                    alt={i.type}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        left: `${i.x * pdfScale}px`,
+                                                        top: `${i.y * pdfScale}px`,
+                                                        width: `${i.width * pdfScale}px`,
+                                                        height: `${i.height * pdfScale}px`,
+                                                        cursor: 'pointer',
+                                                        border: '1px dashed rgba(128,128,128,0.7)',
+                                                        objectFit: 'contain',
+                                                        userSelect: 'none',
+                                                        transformOrigin: 'top left',
+                                                        zIndex: 10
+                                                    }}
+                                                    onClick={e => { e.stopPropagation(); handleRemovePlacedItem(i.id); }}
+                                                />
+                                            </Tooltip>
+                                        ))}
                                     </Document>
                                  ) : ( <Alert message="No PDF Available" description="Please upload a document or ensure the letter has a PDF." type="warning" showIcon /> )}
                             </div>

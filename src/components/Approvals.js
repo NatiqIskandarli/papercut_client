@@ -184,7 +184,7 @@ const Approvals = ({ className }) => {
       setSuperUsers(data);
     } catch (error) {
       console.error('Error fetching super users:', error);
-      message.error('Failed to load super users');
+      //message.error('Failed to load super users');
     }
   };
 

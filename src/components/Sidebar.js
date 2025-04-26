@@ -77,18 +77,7 @@ const Sidebar = () => {
                     <span className={collapsed ? 'hidden' : ''}> Home</span>
                   </Link>
                 </li>
-                <li>
-                  <Link href='/dashboard/CreateForm'>
-                    <PlusCircleOutlined />
-                    <span className={collapsed ? 'hidden' : ''}> Create Template</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link href='/dashboard/CreateLetter'>
-                    <PlusCircleOutlined />
-                    <span className={collapsed ? 'hidden' : ''}> Create Letter</span>
-                  </Link>
-                </li>
+                
                 <li>
                   <Link href='/dashboard/Inbox'>
                     <InboxOutlined />
@@ -141,6 +130,18 @@ const Sidebar = () => {
                   </div>
                   {isTemplatesExpanded && (
                     <ul>
+                      <li>
+                        <Link href='/dashboard/CreateForm'>
+                          <PlusCircleOutlined />
+                          <span className={collapsed ? 'hidden' : ''}> Create Template</span>
+                        </Link>
+                      </li>
+                      <li>
+                        <Link href='/dashboard/CreateLetter'>
+                          <PlusCircleOutlined />
+                          <span className={collapsed ? 'hidden' : ''}> Submit Letter</span>
+                        </Link>
+                      </li>                 
                       <li>
                         <Link href='/dashboard/Templates/Created'>
                           <span className={collapsed ? 'hidden' : ''}> Created</span>

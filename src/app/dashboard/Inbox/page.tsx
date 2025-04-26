@@ -141,16 +141,28 @@ const InboxPage = () => {
   };
 
   const handleActionClick = (record: FormattedRecord, action: 'approve' | 'reject' | 'reassign' | 'final_approve' | 'final_reject') => {
-    // Navigate to the review page, the page itself will handle specific API calls
-    router.push(`/dashboard/Inbox/LetterPdfReview/${record.id}?action=${action}`);
+    const reviewPagePath = record.type === 'Letter'
+        ? `/dashboard/Inbox/LetterReview/${record.id}`
+        : `/dashboard/Inbox/LetterPdfReview/${record.id}`;
+
+    router.push(`${reviewPagePath}?action=${action}`);
   };
 
     const onLetterActionClick = (record: FormattedRecord) => {
-        router.push(`/dashboard/Inbox/LetterPdfReview/${record.id}`);
+        const reviewPagePath = record.type === 'Letter'
+            ? `/dashboard/Inbox/LetterReview/${record.id}`
+            : `/dashboard/Inbox/LetterPdfReview/${record.id}`;
+
+        router.push(reviewPagePath);
     };
 
+
   const onRejectedLetterClick = (record: FormattedRecord) => {
-       router.push(`/dashboard/Inbox/LetterPdfReview/${record.id}`);
+        const reviewPagePath = record.type === 'Letter'
+            ? `/dashboard/Inbox/LetterReview/${record.id}`
+            : `/dashboard/Inbox/LetterPdfReview/${record.id}`;
+
+       router.push(reviewPagePath);
   };
 
    const myApprovalsColumns = [

@@ -18,12 +18,17 @@ export interface User {
   hasPassword?: boolean;
   password?: string | null;
   isSuperUser?: boolean;
+  company?: string;
+  timeZone?: string;
 }
 
 export interface UpdateProfileData {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  company?: string;
+  timeZone?: string;
+  avatar?: string;
 }
 
 export interface UpdatePasswordData {
@@ -170,40 +175,40 @@ export interface Group {
   name: string;
 }
 
-// Create axios instance with default config
 const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Send cookies with requests
 });
 
-// Request interceptor for adding auth token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token_w');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  // No longer setting Authorization header from localStorage
+  // Rely on the browser sending the httpOnly cookie
   return config;
 });
 
-// Response interceptor for handling errors
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     const isMagicLinkFlow =
-      window.location.href.includes('token=') ||
-      window.location.pathname.includes('create-password');
+      typeof window !== 'undefined' &&
+      (window.location.href.includes('token=') ||
+      window.location.pathname.includes('create-password'));
 
     if (error.response?.status === 401 && !isMagicLinkFlow) {
-      localStorage.removeItem('access_token_w');
-      window.location.href = '/login';
+      // Clear any remaining local storage just in case
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('access_token_w');
+        // Redirect to login
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
 );
 
-// Daha dəqiq tiplər üçün axios metodlarını override edirik
 type AxiosGet<T> = (url: string, config?: any) => Promise<T>;
 type AxiosPut<T> = (url: string, data?: any, config?: any) => Promise<T>;
 type AxiosPost<T> = (url: string, data?: any, config?: any) => Promise<T>;
@@ -216,9 +221,6 @@ const typedApi = api as unknown as {
   delete: AxiosDelete<any>;
 };
 
-// ===============================
-// USER-RELATED
-// ===============================
 export const getCurrentUser = async (): Promise<User> => {
   try {
     return await typedApi.get('/users/me');
@@ -245,6 +247,18 @@ export const updatePassword = async (data: UpdatePasswordData): Promise<void> =>
     throw error;
   }
 };
+
+export const logoutUser = async (): Promise<void> => {
+    try {
+        await typedApi.post('/auth/logout');
+    } catch (error) {
+        console.error('Logout error:', error);
+        // Even if backend logout fails, proceed with client-side cleanup
+        // Throwing error might prevent redirection in handleLogout
+        // throw error;
+    }
+};
+
 
 export const setup2FA = async (): Promise<TwoFactorSetupResponse> => {
   try {
@@ -310,11 +324,6 @@ export const verifyMagicLink = async (token: string): Promise<LoginResponse> => 
   }
 };
 
-// ===============================
-// INBOX/APPROVALS-RELATED
-// ===============================
-
-
 export const getApprovalsWaitingForMe = async (): Promise<ApprovalRequest[]> => {
   try {
     return await typedApi.get('/approvals/waiting-for-me');
@@ -371,16 +380,14 @@ export const getCurrentUserStatus = async (): Promise<User> => {
   }
 };
 
-
-
 interface SaveTemplatePayload {
   sections: TemplateSectionData[];
-  name?: string; // Şablon adı (opsional)
+  name?: string;
 }
 
 interface UpdateTemplatePayload {
   sections: TemplateSectionData[];
-  name?: string; // Şablon adı (opsional)
+  name?: string;
 }
 
 interface SavedTemplate {
@@ -395,22 +402,14 @@ interface SavedTemplate {
 export const saveTemplate = async (payload: SaveTemplatePayload): Promise<SavedTemplate> => {
   try {
     console.log('saveTemplate called with payload:', JSON.stringify(payload, null, 2));
-    
-    // API çağrışı - əvvəl debugging logları əlavə edirik
     const response = await typedApi.post('/templates', payload);
-    
-    // Ətraflı response analizi
     console.log('Template saved successfully, API response:', response);
-    
-    // Əgər response undefined və ya null olsa
     if (!response) {
       throw new Error('API-dən cavab gəlmədi.');
     }
-    
-    return response; 
+    return response;
   } catch (error) {
     console.error('Error saving template:', error);
-    
     if (axios.isAxiosError(error) && error.response) {
       console.error('Error response data:', error.response.data);
       console.error('Error response status:', error.response.status);
@@ -423,9 +422,6 @@ export const saveTemplate = async (payload: SaveTemplatePayload): Promise<SavedT
   }
 };
 
-/**
- * İstifadəçinin bütün şablonlarını qaytarır
- */
 export const getTemplates = async (): Promise<SavedTemplate[]> => {
   try {
     return await typedApi.get('/templates');
@@ -435,9 +431,6 @@ export const getTemplates = async (): Promise<SavedTemplate[]> => {
   }
 };
 
-/**
- * ID ilə şablonu qaytarır
- */
 export const getTemplateById = async (id: string): Promise<SavedTemplate> => {
   try {
     return await typedApi.get(`/templates/${id}`);
@@ -447,25 +440,17 @@ export const getTemplateById = async (id: string): Promise<SavedTemplate> => {
   }
 };
 
-/**
- * Şablonu yeniləyir
- */
 export const updateTemplate = async (id: string, payload: UpdateTemplatePayload): Promise<SavedTemplate> => {
   try {
     console.log(`updateTemplate called for template ${id} with payload:`, JSON.stringify(payload, null, 2));
-    
     const response = await typedApi.put(`/templates/${id}`, payload);
-    
     console.log('Template updated successfully, API response:', response);
-    
     if (!response) {
       throw new Error('API-dən cavab gəlmədi.');
     }
-    
     return response;
   } catch (error) {
     console.error(`Error updating template with ID ${id}:`, error);
-    
     if (axios.isAxiosError(error) && error.response) {
       console.error('Error response data:', error.response.data);
       console.error('Error response status:', error.response.status);
@@ -478,9 +463,6 @@ export const updateTemplate = async (id: string, payload: UpdateTemplatePayload)
   }
 };
 
-/**
- * Şablonu silir
- */
 export const deleteTemplate = async (id: string): Promise<void> => {
   try {
     await typedApi.delete(`/templates/${id}`);
@@ -490,25 +472,38 @@ export const deleteTemplate = async (id: string): Promise<void> => {
   }
 };
 
-
-// --- Letter API Functions ---
-
 interface SaveLetterPayload {
   templateId: string;
   formData: LetterFormData;
   name?: string | null;
 }
 
-interface LetterFormData { company: string; date: string; customs: string; person: string; vendor: string; contract: string; value: string; mode: string; reference: string; /* logo: string; REMOVED */ invoiceNumber: string; cargoName: string; cargoDescription: string; documentType: string; importPurpose: string; requestPerson: string; requestDepartment: string; declarationNumber: string; quantityBillNumber: string; subContractorName: string; subContractNumber: string; logoUrl?: string | null; signatureUrl?: string | null; stampUrl?: string | null; }
+interface LetterFormData { company: string; date: string; customs: string; person: string; vendor: string; contract: string; value: string; mode: string; reference: string; invoiceNumber: string; cargoName: string; cargoDescription: string; documentType: string; importPurpose: string; requestPerson: string; requestDepartment: string; declarationNumber: string; quantityBillNumber: string; subContractorName: string; subContractNumber: string; logoUrl?: string | null; signatureUrl?: string | null; stampUrl?: string | null; }
 interface SavedLetter { id: string; name?: string | null; templateId: string; userId: string; formData: Omit<LetterFormData, 'logoUrl' | 'signatureUrl' | 'stampUrl'>; logoUrl?: string | null; signatureUrl?: string | null; stampUrl?: string | null; createdAt: string; updatedAt: string; template?: { id: string; name?: string | null; }; user?: { id: string; firstName?: string; lastName?: string; email?: string; }; }
 interface Reference { id: string; name: string; type: string; }
 interface UploadResponse { key: string; url: string; }
 interface FormDataCore { [key: string]: any; }
 
+interface FormDataLet {
+  company: string; date: string; customs: string; person: string;
+  vendor: string; contract: string; value: string; mode: string;
+  reference: string;
+  invoiceNumber: string; cargoName: string; cargoDescription: string;
+  documentType: string; importPurpose: string; requestPerson: string;
+  requestDepartment: string; declarationNumber: string; quantityBillNumber: string;
+  subContractorName: string; subContractNumber: string;
+  logoUrl: string | null;
+  signatureUrl: string | null;
+  stampUrl: string | null;
+}
+interface UserInfo { id: string; firstName?: string | null; lastName?: string | null; email: string; avatar?: string | null; }
+interface ReviewerStep { id: string; userId: string; sequenceOrder: number; status: string; actedAt?: string | null; reassignedFromUserId?: string | null; user?: UserInfo | null; }
+interface ActionLog { id: string; userId: string; actionType: string; comment?: string | null; details?: any; createdAt: string; user?: UserInfo | null; }
+
 export interface LetterDetailsApiResponse {
   id: string;
   name: string | null;
-  formData: Omit<FormData, 'logoUrl' | 'signatureUrl' | 'stampUrl'>;
+  formData: Omit<FormDataLet, 'logoUrl' | 'signatureUrl' | 'stampUrl'>;
   logoUrl: string | null;
   signatureUrl: string | null;
   stampUrl: string | null;
@@ -522,12 +517,17 @@ export interface LetterDetailsApiResponse {
   } | null;
   createdAt: string;
   updatedAt: string;
+  workflowStatus: LetterWorkflowStatus;
+  currentStepIndex?: number | null;
+  nextActionById?: string | null;
+  letterReviewers: ReviewerStep[] | null;
+  letterActionLogs: ActionLog[] | null;
 }
 
 export const getReferences = async (): Promise<Reference[]> => {
   try {
     const response = await typedApi.get('/references');
-    return response || []; 
+    return response || [];
   } catch (error) {
     console.error('Error in getReferences:', error);
     throw new Error('Referans məlumatlarını yükləmək mümkün olmadı.');
@@ -583,7 +583,7 @@ export const getLetterById = async (letterId: string): Promise<LetterDetailsApiR
 };
 export const saveLetter = async (payload: SaveLetterPayload): Promise<SavedLetter> => {
   try {
-    console.log('API Call: POST /letters with payload:', payload); 
+    console.log('API Call: POST /letters with payload:', payload);
     const response = await typedApi.post('/letters', payload);
     console.log('API Response (saveLetter):', response);
     if (!response) throw new Error('API returned no response when saving letter.');
@@ -598,7 +598,7 @@ export const saveLetter = async (payload: SaveLetterPayload): Promise<SavedLette
 };
 
 
-export const uploadImage = async (file: File, type: 'logo' | 'signature' | 'stamp'): Promise<UploadResponse> => {
+export const uploadImage = async (file: File, type: 'logo' | 'signature' | 'stamp' | 'avatar'): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append('image', file);
 
@@ -637,7 +637,7 @@ export interface SharedTemplateData extends SavedTemplate {
 export const fetchSharedTemplates = async (): Promise<SharedTemplateData[]> => {
   const endpoint = '/templates/shared-with-me';
   try {
-    
+
     const responseData = await typedApi.get(endpoint);
     console.log(`API Response (fetchSharedTemplates):`, responseData);
     if (!responseData) {
@@ -653,13 +653,11 @@ export const fetchSharedTemplates = async (): Promise<SharedTemplateData[]> => {
     return responseData as SharedTemplateData[];
 
   } catch (error) {
-    // The error might have already been processed by the response interceptor (e.g., for 401)
     console.error(`Error executing fetchSharedTemplates (${endpoint}):`, error);
 
     if (error instanceof Error) {
         throw error;
     } else {
-        // Fallback for non-standard errors
         throw new Error('Paylaşılan şablonlar çəkilərkən naməlum xəta baş verdi.');
     }
   }
@@ -667,30 +665,25 @@ export const fetchSharedTemplates = async (): Promise<SharedTemplateData[]> => {
 
 
 export const getTemplateDetailsForUser = async (id: string): Promise<SavedTemplate> => {
-  const endpoint = `/templates/${id}/shared`; // Use the dedicated 'shared' endpoint
+  const endpoint = `/templates/${id}/shared`;
   try {
     console.log(`API Call: GET ${endpoint}`);
     const responseData = await typedApi.get(endpoint);
 
     if (!responseData) {
-       // Should ideally be caught by axios interceptor if it's a network/server issue resulting in no data
        console.warn(`API call to ${endpoint} returned undefined/null after interceptor.`);
        throw new Error(`API sorğusu (${endpoint}) cavab qaytarmadı.`);
     }
-    // Add any necessary validation if the backend might return non-template data on success
-    return responseData as SavedTemplate; // Cast/assume structure matches
+    return responseData as SavedTemplate;
 
   } catch (error) {
     console.error(`Error fetching template details (shared check) for ID ${id} via ${endpoint}:`, error);
 
-    // Handle errors potentially processed by the interceptor
     if (axios.isAxiosError(error) && error.response) {
-         // Interceptor likely handles 401 redirect, but we catch other errors
          if (error.response.status !== 401) {
              const backendError = error.response.data?.error || error.response.data?.message;
              let userMessage = backendError || 'Şablon detalları çəkilərkən xəta baş verdi.';
 
-             // Make messages more specific based on backend response if possible
              if (error.response.status === 404 || (backendError && backendError.includes('tapılmadı'))) {
                 userMessage = 'Şablon tapılmadı.';
              } else if (error.response.status === 403 || (backendError && backendError.includes('icazəniz yoxdur'))) {
@@ -698,14 +691,11 @@ export const getTemplateDetailsForUser = async (id: string): Promise<SavedTempla
              }
              throw new Error(`${userMessage} (Status: ${error.response.status})`);
          } else {
-             // Rethrow 401 for clarity, though interceptor might have already acted
              throw new Error('İcazəniz yoxdur və ya sessiyanız bitib.');
          }
     } else if (error instanceof Error) {
-         // Rethrow errors originating before the request or non-axios errors
          throw error;
     } else {
-        // Fallback
         throw new Error('Şablon detalları çəkilərkən naməlum xəta baş verdi.');
     }
   }
@@ -740,7 +730,7 @@ export const getTemplateDetailsForUser = async (id: string): Promise<SavedTempla
   interface PendingLetter {
     id: string;
     name: string | null;
-    workflowStatus: LetterWorkflowStatus; // Use the enum
+    workflowStatus: LetterWorkflowStatus;
     createdAt: string;
     updatedAt: string;
     originalPdfFileId: string | null;
@@ -754,22 +744,20 @@ export const getTemplateDetailsForUser = async (id: string): Promise<SavedTempla
     letterActionLogs?: Array<{ comment: string | null; createdAt: string }> | null;
   }
 
-  export const getLettersPendingMyAction = async (): Promise<PendingLetter[]> => { // Use the correct PendingLetter type if defined
+  export const getLettersPendingMyAction = async (): Promise<PendingLetter[]> => {
     try {
-        // Call the NEW or MODIFIED backend endpoint that returns BOTH types
-        console.log('API Call: GET /letters/pending-my-action'); // Or your chosen endpoint
-        const response = await typedApi.get('/letters/pending-my-action'); // <-- CHANGE ENDPOINT HERE
+        console.log('API Call: GET /letters/pending-my-action');
+        const response = await typedApi.get('/letters/pending-my-action');
 
         if (!response) {
             throw new Error('API returned no response when fetching pending action letters.');
         }
-        // Ensure the response matches the PendingLetter[] type expected by InboxPage
         return response as PendingLetter[];
     } catch (error) {
         console.error('Error in getLettersPendingMyAction:', error);
         const errorMsg = axios.isAxiosError(error) && error.response?.data?.error
             ? error.response.data.error
-            : error instanceof Error ? error.message : 'Mənim təsdiqimi/nəzərdən keçirməmi gözləyən məktubları yükləyərkən xəta baş verdi.'; // Updated error message
+            : error instanceof Error ? error.message : 'Mənim təsdiqimi/nəzərdən keçirməmi gözləyən məktubları yükləyərkən xəta baş verdi.';
         message.error(errorMsg);
         throw new Error(errorMsg);
     }
@@ -801,9 +789,9 @@ export const getTemplateDetailsForUser = async (id: string): Promise<SavedTempla
     userId: string;
     message: string;
     type: 'comment' | 'rejection' | 'approval' | 'system' | 'update';
-    createdAt: string; // ISO Date string
-    updatedAt: string; // ISO Date string
-    user?: { // Details of the commenter
+    createdAt: string;
+    updatedAt: string;
+    user?: {
         id: string;
         firstName: string | null;
         lastName: string | null;
@@ -818,16 +806,16 @@ export const getLetterComments = async (letterId: string): Promise<LetterComment
   try {
     console.log(`API Call: GET /letters/${letterId}/comments`);
     const response = await typedApi.get(`/letters/${letterId}/comments`);
-    return (response || []) as LetterCommentData[]; // Ensure array return
+    return (response || []) as LetterCommentData[];
   } catch (error) {
     console.error(`Error fetching comments for letter ${letterId}:`, error);
     message.error('Failed to load comments.');
-    throw error; // Re-throw
+    throw error;
   }
 };
 
 
-export const addLetterComment = async (letterId: string, message: string, type?: LetterCommentData): Promise<LetterCommentData> => {
+export const addLetterComment = async (letterId: string, message: string, type?: LetterCommentData['type']): Promise<LetterCommentData> => {
   if (!letterId || !message) throw new Error('Letter ID and message are required to add a comment.');
   try {
     console.log(`API Call: POST /letters/${letterId}/comments`);
@@ -842,7 +830,7 @@ export const addLetterComment = async (letterId: string, message: string, type?:
      } else if (error instanceof Error) {
        errorMsg = error.message;
      }
-     
+
      throw new Error('Paylaşılan şablonlar çəkilərkən naməlum xəta baş verdi.');
   }
 };

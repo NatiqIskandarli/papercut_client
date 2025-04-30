@@ -139,7 +139,7 @@ function LoginContent() {
         setTempUserData(response.user);
         setShowTwoFactorModal(true);
       } else if (response?.accessToken) {
-        // Set login success and let the useEffect handle redirection
+        localStorage.setItem('access_token_w', response.accessToken);
         setLoginSuccess(true);
       } else {
         setError('Login successful but no access token received');

@@ -180,12 +180,10 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Send cookies with requests
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
-  // No longer setting Authorization header from localStorage
-  // Rely on the browser sending the httpOnly cookie
   return config;
 });
 

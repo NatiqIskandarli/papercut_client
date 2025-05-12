@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePathname } from 'next/navigation';
 import '@/styles/NavigationBar.css';
-import { getCurrentUser, logoutUser } from '@/utils/api'; // Added logoutUser
+import { getCurrentUser, logoutUser } from '@/utils/api';
 import { notificationService } from '@/app/services/notificationService';
 
 const { Header } = Layout;
@@ -96,41 +96,36 @@ const NavigationBar = () => {
     };
 
 
+    // --- YENİ handleNotificationClick Funksiyası ---
     const handleNotificationClick = async (notification) => {
-        if (!notification.read) {
-            try {
-                await notificationService.markAsRead(notification.id);
-                setNotifications(prevNotifications =>
-                    prevNotifications.map(n =>
-                        n.id === notification.id ? { ...n, read: true } : n
-                    )
-                );
-                setUnreadCount(prev => Math.max(0, prev - 1));
-            } catch (error) {
-                console.error('Failed to mark notification as read:', error);
-            }
-        }
+        try {
+            // Mark notification as read via service
+            await notificationService.markAsRead(notification.id);
 
-        if (notification.entityType && notification.entityId) {
-            let path;
-            switch (notification.entityType) {
-                case 'space':
-                    path = `/dashboard/Inbox/Space/${notification.entityId}`;
-                    break;
-                case 'cabinet':
-                    path = `/dashboard/Inbox/Cabinet/${notification.entityId}`;
-                    break;
-                case 'record':
-                    path = `/dashboard/Inbox/RecordDetails/${notification.entityId}`;
-                    break;
-                default:
-                    path = '/dashboard/notifications';
+            // Update local state immediately for better UX
+            const updatedNotifications = notifications.map(n =>
+                n.id === notification.id ? { ...n, isRead: true } : n
+            );
+            setNotifications(updatedNotifications);
+
+            setUnreadCount(updatedNotifications.filter(n => !n.isRead).length);
+
+            if (notification.type === 'letter') {
+                router.push(`/dashboard/LetterReview/${notification.letterId}`);
+                console.log(`Navigating to LetterReview for ID: ${notification.letterId}`);
+            } else {
+                // Əgər type 'letter' deyilsə (məsələn, 'pdf' və ya başqa bir şeydirsə)
+                router.push(`/dashboard/LetterPdfReview/${notification.letterId}`);
+                console.log(`Navigating to LetterPdfReview for ID: ${notification.letterId}`);
             }
-            navigateTo(path);
-        } else {
-             navigateTo('/dashboard/notifications');
+
+            setQuickNotificationsVisible(false); // Close dropdown after navigation
+        } catch (error) {
+            message.error('Failed to mark notification as read or navigate.');
+            console.error("Error handling notification click:", error);
         }
     };
+    // --- YENİ handleNotificationClick Funksiyası Sonu ---
 
     const formatDate = (dateString) => {
         if (!dateString) return '';

@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { message } from 'antd';
-import { TemplateSectionData } from '@/app/dashboard/CreateForm/page';
+//import { TemplateSectionData } from '@/app/dashboard/CreateForm/page';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -379,19 +379,19 @@ export const getCurrentUserStatus = async (): Promise<User> => {
 };
 
 interface SaveTemplatePayload {
-  sections: TemplateSectionData[];
+  content?: string;
   name?: string;
 }
 
 interface UpdateTemplatePayload {
-  sections: TemplateSectionData[];
+  content?: string;
   name?: string;
 }
 
 interface SavedTemplate {
     id: string;
     name?: string;
-    sections: TemplateSectionData[];
+    content?: string | '';
     userId: string;
     createdAt: string;
     updatedAt: string;

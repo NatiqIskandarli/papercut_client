@@ -9,17 +9,12 @@ import type { CheckboxChangeEvent } from 'antd/es/checkbox';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import axios from 'axios';
-
-interface TemplateSectionData {
-    id: string;
-    title: string;
-    content: string;
-}
+import CkeditorOzel from '../../../CreateLetter/ckeditor_letter';
 
 interface TemplateData {
     id: string;
     name?: string | null;
-    sections: TemplateSectionData[];
+    content: string;
     userId: string;
     createdAt: string;
     updatedAt: string;
@@ -96,14 +91,11 @@ async function fetchReviewers(templateId: string): Promise<ReviewerUser[]> {
     const config = getAuthHeaders();
     try {
         const response = await axios.get(`${API_URL}/templates/${templateId}/reviewers`, config);
-        console.log("Template-specific reviewers response:", response.data);
         return (response.data && Array.isArray(response.data)) ? response.data : [];
     } catch (error: any) {
         if (error.response && error.response.status === 404) {
-             console.log(`No specific reviewers found for template ${templateId}. Returning empty list.`);
              return [];
         }
-        console.error("Error fetching template-specific reviewers:", error);
         throw error;
     }
 }
@@ -112,7 +104,6 @@ async function fetchAllUsersApi(): Promise<ReviewerUser[]> {
     const config = getAuthHeaders();
     try {
         const response = await axios.get(`${API_URL}/users/list`, config);
-        console.log("All users response:", response.data);
         const usersData = response.data?.users || response.data || [];
         return usersData.map((user: any) => ({
             id: user.id,
@@ -122,11 +113,9 @@ async function fetchAllUsersApi(): Promise<ReviewerUser[]> {
             avatar: user.avatar
         })).filter((user: ReviewerUser) => user.id);
     } catch (error) {
-        console.error("Error fetching all users:", error);
         throw error;
     }
 }
-
 
 async function updateReviewers(templateId: string, reviewerUserIds: string[]): Promise<void> {
     const config = getAuthHeaders();
@@ -134,7 +123,6 @@ async function updateReviewers(templateId: string, reviewerUserIds: string[]): P
 }
 
 async function shareTemplateApi(templateId: string, userIds: string[]): Promise<void> {
-    console.log(`Sharing template ${templateId} with users: ${userIds.join(', ')}`);
     const config = getAuthHeaders();
     await axios.post(`${API_URL}/templates/${templateId}/share`, { userIds }, config);
 }
@@ -145,7 +133,6 @@ async function fetchShareHistoryApi(templateId: string): Promise<ShareHistoryEnt
         const response = await axios.get(`${API_URL}/templates/${templateId}/share-history`, config);
         return response.data || [];
     } catch (error) {
-        console.error("Error fetching share history:", error);
         throw error;
     }
 }
@@ -192,7 +179,6 @@ function ViewTemplateContent() {
         setAllUsers([]);
         setIsFetchingReviewers(false);
         setIsFetchingAllUsers(false);
-
         setShareHistory([]);
         setIsFetchingHistory(false);
 
@@ -223,7 +209,6 @@ function ViewTemplateContent() {
                     setShareHistory(fetchedHistory || []);
 
                 } catch (err: any) {
-                    console.error("Error loading data:", err);
                     const errMsg = err.response?.data?.error || err.message || 'Məlumatları yükləyərkən xəta baş verdi.';
                     setError(errMsg);
                     message.error(errMsg);
@@ -243,44 +228,21 @@ function ViewTemplateContent() {
         }
     }, [templateId]);
 
-
-    const renderContentWithLabels = (text: string): React.ReactNode => {
+    const renderContentWithLabels = (text: string): string => {
         if (!text) return '';
         const parts = text.split(/(\$[a-zA-Z0-9-]+\$)/g);
-        return parts.map((part, index) => {
+        return parts.map((part) => {
             if (part.match(/^\$[a-zA-Z0-9-]+\$$/)) {
                 const fieldId = part.slice(1, -1);
                 const field = templateFields.find(f => f.id === fieldId);
                 if (field) {
-                    return (
-                        <Tag color="processing" key={index} className="mx-0.5 text-xs font-sans">
-                            [{field.label}]
-                        </Tag>
-                    );
+                    return `<span class="ant-tag ant-tag-processing mx-0.5 text-xs font-sans">[${field.label}]</span>`;
                 } else {
-                    return <Tag color="error" key={index} className="mx-0.5 text-xs font-sans">[{fieldId}?]</Tag>;
+                    return `<span class="ant-tag ant-tag-error mx-0.5 text-xs font-sans">[${fieldId}?]</span>`;
                 }
             }
-             const lines = part.split('\n');
-             return lines.map((line, lineIndex) => (
-                  <Fragment key={`${index}-${lineIndex}`}>
-                     {line}
-                     {lineIndex < lines.length - 1 && <br />}
-                  </Fragment>
-             ));
-        });
-    };
-
-    const renderReadOnlySection = (sectionId: string, className: string = '', defaultText: string = '') => {
-        if (!templateData) return <span className={`text-gray-400 text-xs ${className}`}>[Yüklənir...]</span>;
-        const section = templateData.sections.find(s => s.id === sectionId);
-        if (section && section.content) {
-            return (<div className={`${className} min-h-[1em]`}>{renderContentWithLabels(section.content)}</div>);
-        } else if (section && (!section.content || section.content.trim() === '')) {
-             return <span className={`text-gray-400 text-xs ${className}`}>[Boş]</span>;
-        } else {
-            return <span className={`text-orange-400 text-xs italic ${className}`}>[{defaultText || `Bölmə (${sectionId}) render edilə bilmədi`}]</span>;
-         }
+            return part.replace(/\n/g, '<br/>');
+        }).join('');
     };
 
     const handleDelete = () => {
@@ -323,46 +285,39 @@ function ViewTemplateContent() {
         }
     };
 
-    // Inside ViewTemplateContent component
-const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
-    if (!templateId) return; // Need templateId to refetch history
-
-    const sharedWithUserName = `${shareEntry.sharedWithUser.firstName || ''} ${shareEntry.sharedWithUser.lastName || ''}`.trim() || 'bu istifadəçi';
-
-    Modal.confirm({
-        title: 'Paylaşmanı Sil',
-        icon: <ExclamationCircleOutlined />,
-        content: `"${sharedWithUserName}" ilə olan paylaşmanı silməyə əminsiniz? Bu əməliyyat geri qaytarıla bilməz.`,
-        okText: 'Bəli, Sil',
-        okType: 'danger',
-        cancelText: 'Ləğv et',
-        centered: true,
-        maskClosable: true,
-        onOk: async () => {
-            setDeletingShareId(shareEntry.id); // Show loading on the specific row's button
-            const key = `deletingShare_${shareEntry.id}`;
-            message.loading({ content: 'Paylaşma silinir...', key, duration: 0 });
-
-            try {
-                await deleteShareRecordApi(shareEntry.id); // Call the delete API
-                message.success({ content: 'Paylaşma uğurla silindi!', key, duration: 2 });
-
-                // Refresh the history list
-                setShareHistory(prevHistory => prevHistory.filter(item => item.id !== shareEntry.id));
-
-            } catch (err: any) {
-                 let errorMsg = 'Paylaşma silinərkən xəta.';
-                 if (err.response?.data?.error) { errorMsg = err.response.data.error; }
-                 else if (err.message) { errorMsg = err.message; }
-                 message.error({ content: errorMsg, key, duration: 4 });
-            } finally {
-                 message.destroy(key); // Ensure loading message is dismissed
-                 setDeletingShareId(null); // Reset loading state
-            }
-        },
-        onCancel: () => {}
-    });
-};
+    const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
+        if (!templateId) return;
+        const sharedWithUserName = `${shareEntry.sharedWithUser.firstName || ''} ${shareEntry.sharedWithUser.lastName || ''}`.trim() || 'bu istifadəçi';
+        Modal.confirm({
+            title: 'Paylaşmanı Sil',
+            icon: <ExclamationCircleOutlined />,
+            content: `"${sharedWithUserName}" ilə olan paylaşmanı silməyə əminsiniz? Bu əməliyyat geri qaytarıla bilməz.`,
+            okText: 'Bəli, Sil',
+            okType: 'danger',
+            cancelText: 'Ləğv et',
+            centered: true,
+            maskClosable: true,
+            onOk: async () => {
+                setDeletingShareId(shareEntry.id);
+                const key = `deletingShare_${shareEntry.id}`;
+                message.loading({ content: 'Paylaşma silinir...', key, duration: 0 });
+                try {
+                    await deleteShareRecordApi(shareEntry.id);
+                    message.success({ content: 'Paylaşma uğurla silindi!', key, duration: 2 });
+                    setShareHistory(prevHistory => prevHistory.filter(item => item.id !== shareEntry.id));
+                } catch (err: any) {
+                    let errorMsg = 'Paylaşma silinərkən xəta.';
+                    if (err.response?.data?.error) { errorMsg = err.response.data.error; }
+                    else if (err.message) { errorMsg = err.message; }
+                    message.error({ content: errorMsg, key, duration: 4 });
+                } finally {
+                    message.destroy(key);
+                    setDeletingShareId(null);
+                }
+            },
+            onCancel: () => {}
+        });
+    };
 
     const handleOpenShareModal = () => {
         setShareUserIds([]);
@@ -396,11 +351,8 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
             }
         } catch (err: any) {
             let errorMsg = 'Şablon paylaşılarkən xəta.';
-            if (err.response?.data?.error) {
-                errorMsg = err.response.data.error;
-            } else if (err.message) {
-                errorMsg = err.message;
-            }
+            if (err.response?.data?.error) { errorMsg = err.response.data.error; }
+            else if (err.message) { errorMsg = err.message; }
             message.error({ content: errorMsg, key, duration: 4 });
         } finally {
             setIsSharing(false);
@@ -415,24 +367,20 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
         setShareUserIds(e.target.checked ? allUserIds : []);
     };
 
-
     const reviewerOptions = useMemo(() => {
-        return allUsers
-             .map(user => ({
-                label: (
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <Avatar size="small" src={user.avatar}>{`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`}</Avatar>
-                        <span style={{ marginLeft: 8 }}>{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>
-                    </div>
-                ),
-                value: user.id,
-             }));
+        return allUsers.map(user => ({
+            label: (
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar size="small" src={user.avatar}>{`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`}</Avatar>
+                    <span style={{ marginLeft: 8 }}>{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>
+                </div>
+            ),
+            value: user.id,
+        }));
     }, [allUsers]);
 
     const selectedReviewerObjects = useMemo(() => {
-        if (!allUsers || allUsers.length === 0) {
-            return [];
-        }
+        if (!allUsers || allUsers.length === 0) return [];
         return selectedReviewerIds
             .map(id => allUsers.find(user => user.id === id))
             .filter((user): user is ReviewerUser => user !== undefined);
@@ -444,17 +392,40 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
         return JSON.stringify(currentIds) !== JSON.stringify(selectedIds);
     }, [currentReviewers, selectedReviewerIds]);
 
-
     if (isLoading) {
-       return ( <div className="flex justify-center items-center min-h-[400px] p-8"> <Spin size="large" tip="Şablon yüklənir..." /> </div> );
+        return (
+            <div className="flex justify-center items-center min-h-[400px] p-8">
+                <Spin size="large" tip="Şablon yüklənir..." />
+            </div>
+        );
     }
 
     if (error && !templateData) {
-       return ( <div className="p-4 md:p-8"> <Alert message="Xəta" description={error} type="error" showIcon action={<Button type="primary" onClick={() => router.push('/dashboard/Templates/Created')}>Siyahıya Qayıt</Button>} /> </div> );
+        return (
+            <div className="p-4 md:p-8">
+                <Alert
+                    message="Xəta"
+                    description={error}
+                    type="error"
+                    showIcon
+                    action={<Button type="primary" onClick={() => router.push('/dashboard/Templates/Created')}>Siyahıya Qayıt</Button>}
+                />
+            </div>
+        );
     }
 
     if (!templateData) {
-        return ( <div className="p-4 md:p-8"> <Alert message="Məlumat Tapılmadı" description={error || "Şablon ID-si tapılmadı və ya göstərilən ID ilə şablon mövcud deyil."} type="warning" showIcon action={<Button type="default" onClick={() => router.push('/dashboard/Templates/Created')}>Siyahıya Qayıt</Button>} /> </div> );
+        return (
+            <div className="p-4 md:p-8">
+                <Alert
+                    message="Məlumat Tapılmadı"
+                    description={error || "Şablon ID-si tapılmadı və ya göstərilən ID ilə şablon mövcud deyil."}
+                    type="warning"
+                    showIcon
+                    action={<Button type="default" onClick={() => router.push('/dashboard/Templates/Created')}>Siyahıya Qayıt</Button>}
+                />
+            </div>
+        );
     }
 
     const shareModalUserOptions = allUsers.map(user => ({
@@ -463,7 +434,7 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
                 <Avatar size="small" src={user.avatar}>{`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`}</Avatar>
                 <span style={{ marginLeft: 8 }}>{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>
                 <span style={{ marginLeft: 8, fontSize: '0.8em', color: '#888' }}>{`(${user.email || 'email yoxdur'})`}</span>
-             </div>
+            </div>
         ),
         value: user.id,
     }));
@@ -473,7 +444,7 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
             title: 'Paylaşılma Tarixi',
             dataIndex: 'sharedAt',
             key: 'sharedAt',
-            render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'), // Format date
+            render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
             sorter: (a, b) => dayjs(a.sharedAt).unix() - dayjs(b.sharedAt).unix(),
             defaultSortOrder: 'descend',
         },
@@ -483,8 +454,8 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
             key: 'sharedByUser',
             render: (user: ShareHistoryEntry['sharedByUser']) => (
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                   <Avatar size="small" src={user.avatar}>{`<span class="math-inline">\{user\.firstName?\.\[0\] \|\| ''\}</span>{user.lastName?.[0] || ''}`}</Avatar>
-                   <span style={{ marginLeft: 8 }}>{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>
+                    <Avatar size="small" src={user.avatar}>{`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`}</Avatar>
+                    <span style={{ marginLeft: 8 }}>{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>
                 </div>
             ),
         },
@@ -493,98 +464,70 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
             dataIndex: 'sharedWithUser',
             key: 'sharedWithUser',
             render: (user: ShareHistoryEntry['sharedWithUser']) => (
-                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                   <Avatar size="small" src={user.avatar}>{`<span class="math-inline">\{user\.firstName?\.\[0\] \|\| ''\}</span>{user.lastName?.[0] || ''}`}</Avatar>
-                   <span style={{ marginLeft: 8 }}>{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <Avatar size="small" src={user.avatar}>{`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`}</Avatar>
+                    <span style={{ marginLeft: 8 }}>{`${user.firstName || ''} ${user.lastName || ''}`.trim()}</span>
                 </div>
             ),
         },
         {
-            title: 'Action', // Actions
+            title: 'Action',
             key: 'action',
             align: 'center',
             width: 100,
-            render: (_, record: ShareHistoryEntry) => ( // record is the data for the current row
-                 <Tooltip title="Bu paylaşmanı ləğv et">
-                     <Button
-                         type="text" // Use text for less visual clutter
-                         danger
-                         icon={<DeleteOutlined />}
-                         size="small"
-                         onClick={(e) => {
-                             e.stopPropagation(); // Prevent potential row click events
-                             handleDeleteShare(record); // Pass the whole record or just record.id
-                         }}
-                         loading={deletingShareId === record.id} // Show loading state on this specific button
-                         disabled={deletingShareId !== null && deletingShareId !== record.id} // Disable others while deleting
-                         style={{ border: 'none', background: 'none' }} // Ensure button looks minimal
-                      />
-                 </Tooltip>
+            render: (_, record: ShareHistoryEntry) => (
+                <Tooltip title="Bu paylaşmanı ləğv et">
+                    <Button
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        size="small"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteShare(record);
+                        }}
+                        loading={deletingShareId === record.id}
+                        disabled={deletingShareId !== null && deletingShareId !== record.id}
+                        style={{ border: 'none', background: 'none' }}
+                    />
+                </Tooltip>
             ),
         },
     ];
-    
 
     return (
         <div className="p-4 md:p-8 bg-gray-100 min-h-screen">
             <Card bordered={false} className="shadow-lg rounded-lg">
-                 <div className="flex justify-between items-center mb-6 flex-wrap gap-4 border-b pb-4">
-                     <Button icon={<LeftOutlined />} onClick={() => router.push('/dashboard/Templates/Created')}> Siyahıya Qayıt </Button>
-                     <Typography.Title level={4} className="mb-0 text-center flex-grow px-4 truncate" title={templateData.name || "Adsız Şablon"}> {templateData.name || "Adsız Şablon"} </Typography.Title>
-                     <Button icon={<ShareAltOutlined />} onClick={handleOpenShareModal}> Paylaş </Button>
-                 </div>
+                <div className="flex justify-between items-center mb-6 flex-wrap gap-4 border-b pb-4">
+                    <Button icon={<LeftOutlined />} onClick={() => router.push('/dashboard/Templates/Created')}> Siyahıya Qayıt </Button>
+                    <Typography.Title level={4} className="mb-0 text-center flex-grow px-4 truncate" title={templateData.name || "Adsız Şablon"}> {templateData.name || "Adsız Şablon"} </Typography.Title>
+                    <Button icon={<ShareAltOutlined />} onClick={handleOpenShareModal}> Paylaş </Button>
+                </div>
 
                 <div className="bg-white p-6 rounded-lg border border-gray-200 mb-8 text-sm font-serif leading-relaxed shadow-inner">
-                     <div className="flex justify-between items-start mb-8">
-                        <div className="w-24 h-16 flex items-center justify-center bg-gray-100 rounded border flex-shrink-0 text-gray-400 text-xs">
-                             <span>Loqo</span>
-                        </div>
-                        <div className="text-right space-y-1 ml-4">
-                            {renderReadOnlySection('header', 'font-semibold')}
-                            {renderReadOnlySection('date-value')}
-                        </div>
-                    </div>
-                    <div className="mb-6 space-y-1">
-                        {renderReadOnlySection('address', 'whitespace-pre-line')}
-                        {renderReadOnlySection('doc-type-value')}
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded border border-gray-200 mb-6 text-xs space-y-1.5 font-sans">
-                        <div className="flex items-baseline"><span className="w-28 font-medium flex-shrink-0">{renderReadOnlySection('request-person-label', 'inline-block')}</span>{renderReadOnlySection('request-person-value')}</div>
-                        <div className="flex items-baseline"><span className="w-28 font-medium flex-shrink-0">{renderReadOnlySection('request-dept-label', 'inline-block')}</span>{renderReadOnlySection('request-dept-value')}</div>
-                        <div className="flex items-baseline"><span className="w-28 font-medium flex-shrink-0">{renderReadOnlySection('import-purpose-label', 'inline-block')}</span>{renderReadOnlySection('import-purpose-value', 'flex-grow')}</div>
-                    </div>
-                    <div className="mb-6 space-y-1"><div className="flex items-baseline"><span className="w-20 font-medium flex-shrink-0">{renderReadOnlySection('recipient-label', 'inline-block')}</span>{renderReadOnlySection('recipient-value')}</div>{renderReadOnlySection('recipient')}</div>
-                    <div className="mb-6">{renderReadOnlySection('introduction')}</div>
-                    <div className="space-y-2 mb-8 border-t border-b border-gray-200 py-4 font-sans">
-                        <div className="flex justify-between items-baseline">{renderReadOnlySection('invoice-number-label', 'inline-block font-semibold')}{renderReadOnlySection('invoice-number-value', 'text-right')}</div>
-                        <div className="flex justify-between items-baseline">{renderReadOnlySection('cargo-name-label', 'inline-block font-semibold')}{renderReadOnlySection('cargo-name-value', 'text-right')}</div>
-                        <div className="flex justify-between items-baseline">{renderReadOnlySection('cargo-description-label', 'inline-block font-semibold mr-2')}{renderReadOnlySection('cargo-description-value', 'flex-grow text-right')}</div>
-                         <div className="flex justify-between items-baseline">{renderReadOnlySection('subcontractor-label', 'inline-block font-semibold')}{renderReadOnlySection('subcontractor-value', 'text-right')}</div>
-                         <div className="flex justify-between items-baseline">{renderReadOnlySection('subcontract-num-label', 'inline-block font-semibold')}{renderReadOnlySection('subcontract-num-value', 'text-right')}</div>
-                        <div className="flex justify-between items-baseline">{renderReadOnlySection('customs-value-label', 'inline-block font-semibold mr-2')}{renderReadOnlySection('amount-value', 'text-right')}</div>
-                    </div>
-                    <div className="mt-12">{renderReadOnlySection('footer', 'whitespace-pre-line')}</div>
-                    <div className="mt-8 pt-8 border-t border-dashed">{renderReadOnlySection('signature')}</div>
-                    <div className="mt-10 pt-4 border-t border-gray-200">
-                        <h4 className="text-xs font-semibold uppercase text-gray-500 mb-3 font-sans">Təsdiqləmə Prosesi</h4>
-                        <div className="flex space-x-4 items-center text-xs font-sans">
-                            <div className="flex items-center text-green-600"><span className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center text-white mr-1.5 text-[10px]">1</span><span>Qaralama</span><span className="mx-2 text-gray-300">&rarr;</span></div>
-                            <div className="flex items-center text-gray-500"><span className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 mr-1.5 text-[10px]">2</span><span>Rəy</span><span className="mx-2 text-gray-300">&rarr;</span></div>
-                            <div className="flex items-center text-gray-500"><span className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 mr-1.5 text-[10px]">3</span><span>Təsdiqlənib</span></div>
-                        </div>
+                    {/* Template-in tam məzmunu burada göstərilir */}
+                    {/* <div dangerouslySetInnerHTML={{ __html: renderContentWithLabels(templateData.content) }} /> */}
+                    <div className="ck-editor-wrapper">
+                    <CkeditorOzel
+                        onChange={() => {}}
+                        initialData={templateData.content}
+                        customFields={[]}
+                        readOnly={true}
+                    />
                     </div>
                 </div>
 
-                 <Divider />
-                 <div className="grid grid-cols-1 gap-8 mb-8">
 
+
+
+                <Divider />
+                <div className="grid grid-cols-1 gap-8 mb-8">
                     <div className="border p-4 rounded-md bg-white shadow-sm">
                         <Typography.Title level={5} className="mb-4">Reviewer Təyin Et (Maks. 5)</Typography.Title>
-
                         <Spin spinning={isFetchingAllUsers || isFetchingReviewers} tip="Reviewer məlumatları yüklənir...">
                             {selectedReviewerObjects.length > 0 ? (
                                 <div className="mb-3 flex flex-wrap gap-2 items-center">
-                                     <Typography.Text strong className="mr-2">Seçilmiş Reviewer-lər:</Typography.Text>
+                                    <Typography.Text strong className="mr-2">Seçilmiş Reviewer-lər:</Typography.Text>
                                     {selectedReviewerObjects.map(user => (
                                         <Tag key={user.id} icon={<Avatar size="small" src={user.avatar}>{`${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`}</Avatar>} className="flex items-center">
                                             {`${user.firstName || ''} ${user.lastName || ''}`.trim()}
@@ -593,13 +536,12 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
                                 </div>
                             ) : (
                                 !isFetchingAllUsers && !isFetchingReviewers && selectedReviewerIds.length === 0 && (
-                                   <Typography.Text type="secondary" className="block mb-3">
-                                       Dropdown-dan reviewer seçin.
-                                   </Typography.Text>
+                                    <Typography.Text type="secondary" className="block mb-3">
+                                        Dropdown-dan reviewer seçin.
+                                    </Typography.Text>
                                 )
                             )}
-                         </Spin>
-
+                        </Spin>
                         <Select
                             mode="multiple"
                             allowClear
@@ -612,11 +554,10 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
                             maxCount={5}
                             filterOption={(input, option) =>
                                 (option?.label as React.ReactElement)?.props?.children[1]?.props?.children
-                                  ?.toLowerCase().includes(input.toLowerCase()) ?? false
+                                    ?.toLowerCase().includes(input.toLowerCase()) ?? false
                             }
                             className="mb-4"
                         />
-
                         <Button
                             type="primary"
                             icon={<SaveOutlined />}
@@ -627,22 +568,22 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
                             Reviewer-ləri Yadda Saxla
                         </Button>
                     </div>
-                 </div>
+                </div>
 
-                 <div className="flex justify-end">
-                     <Button
+                <div className="flex justify-end">
+                    <Button
                         type="primary"
                         danger
                         icon={<DeleteOutlined />}
                         onClick={handleDelete}
                         disabled={isDeleting}
                         loading={isDeleting}
-                      >
+                    >
                         Şablonu Sil
-                     </Button>
-                 </div>
+                    </Button>
+                </div>
 
-                 <Modal
+                <Modal
                     title="Şablonu İstifadəçilərlə Paylaş"
                     open={isShareModalVisible}
                     onOk={handleShareTemplate}
@@ -651,11 +592,11 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
                     okText="Paylaş"
                     cancelText="Ləğv et"
                     destroyOnClose
-                    width={600} // Adjust width if needed
-                 >
+                    width={600}
+                >
                     <Spin spinning={isFetchingAllUsers} tip="İstifadəçilər yüklənir...">
                         {allUsers.length === 0 && !isFetchingAllUsers ? (
-                           <Empty description="Paylaşmaq üçün istifadəçi tapılmadı." image={Empty.PRESENTED_IMAGE_SIMPLE}/>
+                            <Empty description="Paylaşmaq üçün istifadəçi tapılmadı." image={Empty.PRESENTED_IMAGE_SIMPLE}/>
                         ) : (
                             <>
                                 <Checkbox
@@ -675,24 +616,22 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
                                 />
                             </>
                         )}
-                     </Spin>
-                 </Modal>
+                    </Spin>
+                </Modal>
 
-                 <Divider />
-
+                <Divider />
                 <div className="mt-8">
                     <Typography.Title level={5} className="mb-4">Paylaşma Tarixçəsi</Typography.Title>
                     <Table
                         columns={historyColumns}
                         dataSource={shareHistory}
                         loading={isFetchingHistory}
-                        rowKey="id" 
+                        rowKey="id"
                         pagination={{ pageSize: 5 }}
                         locale={{ emptyText: 'Paylaşma tarixçəsi tapılmadı.' }}
                         size="small"
                     />
                 </div>
-
             </Card>
         </div>
     );
@@ -700,7 +639,7 @@ const handleDeleteShare = (shareEntry: ShareHistoryEntry) => {
 
 export default function ViewTemplatePage() {
     return (
-        <Suspense fallback={ <div className="flex justify-center items-center min-h-screen p-8"> <Spin size="large" tip="Səhifə yüklənir..." /> </div> }>
+        <Suspense fallback={<div className="flex justify-center items-center min-h-screen p-8"><Spin size="large" tip="Səhifə yüklənir..." /></div>}>
             <ViewTemplateContent />
         </Suspense>
     );

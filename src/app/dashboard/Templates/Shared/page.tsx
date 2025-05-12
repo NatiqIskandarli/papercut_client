@@ -93,9 +93,6 @@ export default function SharedTemplatesPage() {
                          </span>
                       }
                 />
-                 <div className="text-xs text-gray-500 mr-4">
-                    {template.sections.length} bölmə
-                 </div>
             </List.Item>
         );
      };

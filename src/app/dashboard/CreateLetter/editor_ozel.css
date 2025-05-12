@@ -1,0 +1,39 @@
+.ck-content {
+    font-family: 'Times New Roman', Times, serif; /* CKEditor-un default fontu */
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+  }
+  
+  .ck-content p {
+    margin-bottom: 1em;
+  }
+  
+  .ck-content img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 10px 0;
+  }
+  
+  .ck-content h1, .ck-content h2, .ck-content h3, .ck-content h4, .ck-content h5, .ck-content h6 {
+    margin: 0.5em 0;
+    font-weight: bold;
+  }
+  
+  .ck-content ul, .ck-content ol {
+    margin: 1em 0;
+    padding-left: 40px;
+  }
+  
+  .ck-content li {
+    margin-bottom: 0.5em;
+  }
+  
+  /* Şəkillərin düzgün hizalanması üçün */
+  .ck-content .image {
+    display: table;
+    margin: 10px auto;
+  }
+  
+  /* Daha çox CKEditor stillərini kopyalaya bilərsiniz */

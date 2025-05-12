@@ -9,7 +9,7 @@ import { message, Spin, List, Card, Typography, Button, Empty, Alert } from 'ant
 interface TemplateData {
     id: string;
     name?: string | null;
-    sections: Array<{ id: string; title: string; content: string }>;
+    content: string; // HTML məzmunu
     userId: string;
     createdAt: string; // ISO formatında tarix gözlənilir
     updatedAt: string; // ISO formatında tarix gözlənilir
@@ -95,9 +95,6 @@ export default function CreatedTemplatesPage() {
                 title={<Typography.Text className="font-medium">{template.name || `Adsız Şablon (ID: ${template.id.substring(0, 8)}...)`}</Typography.Text>}
                 description={`Son yenilənmə: ${new Date(template.updatedAt).toLocaleString('az-AZ')}`} // Lokal tarix formatı
             />
-             <div className="text-xs text-gray-500 mr-4">
-                {template.sections.length} bölmə
-             </div>
         </List.Item>
     );
 

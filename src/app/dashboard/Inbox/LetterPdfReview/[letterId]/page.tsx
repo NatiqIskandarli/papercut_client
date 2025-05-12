@@ -12,11 +12,10 @@ import {
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { getCurrentUser } from '@/utils/api'; // Assuming this utility exists
+import { getCurrentUser } from '@/utils/api'; 
 import { PDFDocument, PDFImage } from 'pdf-lib';
 import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
-
 
 async function apiRequest<T = any>(endpoint: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', body?: any): Promise<T> {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
@@ -52,11 +51,45 @@ interface UploadResponseFile { id: string; name: string; path: string; url?: str
 interface SignatureData { id: string; r2Url: string; name?: string; createdAt: string; }
 interface StampData { id: string; r2Url: string; name?: string; createdAt: string; }
 
-// UPDATED PlacedItem interface to use percentages
+interface PlacementInfoForDisplay {
+    id?: string;
+    type: 'signature' | 'stamp' | 'qrcode';
+    url?: string;
+    pageNumber: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+
+
+interface LetterDetails {
+    id: string;
+    name?: string | null;
+    userId: string;
+    workflowStatus: string;
+    nextActionById?: string | null;
+    signedPdfUrl?: string | null;
+    finalSignedPdfUrl?: string | null;
+    originalPdfFileId?: string | null;
+    createdAt: string;
+    updatedAt: string;
+    user?: UserInfo | null;
+    letterReviewers?: ReviewerStep[] | null;
+    letterActionLogs?: ActionLog[] | null;
+    placements?: PlacementInfoForDisplay[] | null;
+}
+
+interface CurrentUserType { id: string; email: string; firstName?: string | null; lastName?: string | null; avatar?: string | null; }
+interface UploadResponseFile { id: string; name: string; path: string; url?: string; }
+interface SignatureData { id: string; r2Url: string; name?: string; createdAt: string; }
+interface StampData { id: string; r2Url: string; name?: string; createdAt: string; }
+
 interface PlacedItem {
     id: string;
-    type: 'signature' | 'stamp';
-    url: string;
+    type: 'signature' | 'stamp' | 'qrcode';
+    url?: string; // URL is optional for QR codes
     pageNumber: number;
     xPct: number; // Position X as percentage of original page width
     yPct: number; // Position Y as percentage of original page height
@@ -64,16 +97,16 @@ interface PlacedItem {
     heightPct: number; // Height as percentage of original page height
 }
 
-interface PlacingItemInfo { type: 'signature' | 'stamp'; url: string; width: number; height: number; } // width/height are desired scale 1 dimensions
+interface PlacingItemInfo { type: 'signature' | 'stamp' | 'qrcode'; url?: string; width: number; height: number; }
 
 interface UploadedFileInfo { id: string; name: string; url: string; size: number; type: string; }
-
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 const ZOOM_STEP = 0.2;
 const MIN_SCALE = 0.4;
 const MAX_SCALE = 3.0;
-
+const QR_PLACEHOLDER_COLOR = 'rgba(0, 150, 50, 0.7)';
+const QR_PLACEHOLDER_TEXT = 'QR';
 
 export default function LetterPdfReviewPage() {
     const router = useRouter();
@@ -112,7 +145,6 @@ export default function LetterPdfReviewPage() {
 
     // Store original page dimensions (scale 1) for correct percentage calculations
     const [pageDimensions, setPageDimensions] = useState<{ [key: number]: { width: number; height: number } }>({});
-
 
     const pdfContainerRef = useRef<HTMLDivElement>(null); // Reference to the main PDF container
 
@@ -156,41 +188,34 @@ export default function LetterPdfReviewPage() {
             setNumPages(null);
             setPdfScale(1.0);
 
-
             try {
                 const details = await apiRequest<LetterDetails>(`/letters/${letterId}`);
                 setLetterDetails(details);
                 if (details.signedPdfUrl) {
-                    // Fetch view URL for the *current* (potentially rejected) signed PDF
                     const urlResponse = await apiRequest<{ viewUrl: string }>(`/letters/${letterId}/view-url`);
                     setPdfUrl(urlResponse.viewUrl);
                 } else {
-                    // Handle cases where there might not be a signed PDF yet (e.g., fresh draft - though not typical for this page)
                     setPdfUrl(null);
                 }
             } catch (err: any) {
                 console.error("Error fetching letter details or PDF URL:", err);
                 setError(err.message || "An error occurred while loading the letter.");
                 setLetterDetails(null);
-                setPdfUrl(null); // Ensure pdfUrl is null on error
+                setPdfUrl(null);
             } finally {
                 setIsLoading(false);
             }
         };
         fetchData();
 
-         // Cleanup function for the initial PDF URL (if it exists)
         return () => {
-            // This cleanup is primarily for the blob URL created during resubmit upload
-            // The initial pdfUrl from API is usually not a blob URL, so revoking is not needed/possible
-             if (processingPdfUrl) {
+            if (processingPdfUrl) {
                 URL.revokeObjectURL(processingPdfUrl);
-                setProcessingPdfUrl(null); // Ensure state is cleared
-             }
+                setProcessingPdfUrl(null);
+            }
         };
-    }, [letterId]); // Depend only on letterId
+    }, [letterId]);
 
-    // Effect to load signatures and stamps from local storage
     useEffect(() => {
         if (typeof window !== 'undefined') {
             try {
@@ -208,21 +233,19 @@ export default function LetterPdfReviewPage() {
                 } else { setSavedStamps([]); }
             } catch (e) { console.error("Failed to load/parse stamps", e); setSavedStamps([]); }
         }
-    }, []); // Empty dependency array means this runs once on mount
+    }, []);
 
-    // Effect to fetch users for reassignment when the modal is visible
     useEffect(() => {
         if (isReassignModalVisible && letterDetails) {
             const fetchUsers = async () => {
                 try {
                     const allUsers = await apiRequest<UserInfo[]>('/users');
                     const currentWorkflowUserIds = new Set(letterDetails.letterReviewers?.map(r => r.userId) ?? []);
-                    currentWorkflowUserIds.add(letterDetails.userId); // Add the original submitter
-                     if (letterDetails.nextActionById) currentWorkflowUserIds.add(letterDetails.nextActionById); // Add the current next actor
+                    currentWorkflowUserIds.add(letterDetails.userId);
+                    if (letterDetails.nextActionById) currentWorkflowUserIds.add(letterDetails.nextActionById);
                     if (currentUser) {
-                        currentWorkflowUserIds.add(currentUser.id); // Add current user (though they can't reassign to themselves)
+                        currentWorkflowUserIds.add(currentUser.id);
                     }
-                    // Filter out users already involved in this workflow step or who are the submitter/current actor
                     const availableUsers = allUsers.filter(user => !currentWorkflowUserIds.has(user.id));
                     setReassignOptions(availableUsers);
                 } catch (err: any) {
@@ -233,7 +256,6 @@ export default function LetterPdfReviewPage() {
             fetchUsers();
         }
     }, [isReassignModalVisible, letterDetails, currentUser]);
-
 
     const isCurrentUserNextActor = useMemo(() => {
         return !!currentUser && !!letterDetails && letterDetails.nextActionById === currentUser.id;
@@ -251,8 +273,7 @@ export default function LetterPdfReviewPage() {
             letterDetails.userId === currentUser.id;
     }, [currentUser, letterDetails]);
 
-
-    // --- Action Handlers ---
+    const isFinalApprovalSigningMode = canTakeAction && letterDetails?.workflowStatus === LetterWorkflowStatus.PENDING_APPROVAL;
 
     const handleApprove = async () => {
         if (!letterId || !currentUser?.id || !canTakeAction) return;
@@ -264,11 +285,44 @@ export default function LetterPdfReviewPage() {
         message.loading({ content: 'Processing approval...', key: 'action' });
         try {
             const isFinalApproval = letterDetails?.workflowStatus === LetterWorkflowStatus.PENDING_APPROVAL;
+            
+            
+            
+            
             const endpoint = isFinalApproval ? `/letters/${letterId}/final-approve` : `/letters/${letterId}/approve-review`;
-            const payload = { comment: actionComment };
+            const payload: { comment: string; placements?: PlacementInfoForDisplay[] } = { comment: actionComment };
+
+            if (isFinalApproval) {
+                const placementsForBackend: PlacementInfoForDisplay[] = placedItems.map(item => {
+                  const dims = pageDimensions[item.pageNumber];
+                  if (!dims) {
+                    throw new Error(`Dimensions for page ${item.pageNumber} not found.`);
+                  }
+          
+                  // Convert percentages to absolute coordinates
+                  const x = item.xPct * dims.width;
+                  const y = item.yPct * dims.height;
+                  const width = item.widthPct * dims.width;
+                  const height = item.heightPct * dims.height;
+          
+                  return {
+                    type: item.type,
+                    url: item.url || '', // Ensure a valid URL is provided
+                    pageNumber: item.pageNumber,
+                    x,
+                    y,
+                    width,
+                    height,
+                  };
+                });
+          
+                payload.placements = placementsForBackend;
+              }
+
+
             await apiRequest(endpoint, 'POST', payload);
             message.success({ content: 'Action successful!', key: 'action', duration: 2 });
-            setActionComment(''); 
+            setActionComment('');
             router.push('/dashboard/Inbox');
         } catch (apiError: any) {
             message.error({ content: `Failed to process approval: ${apiError.message || 'Unknown error'}`, key: 'action', duration: 4 });
@@ -291,8 +345,8 @@ export default function LetterPdfReviewPage() {
             const payload = { reason: actionComment };
             await apiRequest(endpoint, 'POST', payload);
             message.success({ content: 'Rejection successful!', key: 'action', duration: 2 });
-            setActionComment(''); 
-             router.push('/dashboard/Inbox');
+            setActionComment('');
+            router.push('/dashboard/Inbox');
         } catch (apiError: any) {
             message.error({ content: `Failed to process rejection: ${apiError.message || 'Unknown error'}`, key: 'action', duration: 4 });
         } finally {
@@ -303,17 +357,17 @@ export default function LetterPdfReviewPage() {
     const showReassignModal = () => setIsReassignModalVisible(true);
     const handleReassignCancel = () => {
         setIsReassignModalVisible(false);
-        setReassignTargetUserId(null); // Clear selection on cancel
+        setReassignTargetUserId(null);
     }
     const handleReassignSubmit = async () => {
         if (!letterId || !currentUser?.id || !canTakeAction || !reassignTargetUserId) {
             message.error("Please select a user to reassign to.");
             return;
         }
-         if (!actionComment.trim()) {
-             message.error("Reassign reason/comment cannot be empty.");
-             return;
-         }
+        if (!actionComment.trim()) {
+            message.error("Reassign reason/comment cannot be empty.");
+            return;
+        }
         setIsActionLoading(true);
         setIsReassignModalVisible(false);
         message.loading({ content: 'Processing reassignment...', key: 'action' });
@@ -322,16 +376,15 @@ export default function LetterPdfReviewPage() {
             const payload = { newUserId: reassignTargetUserId, reason: actionComment };
             await apiRequest(endpoint, 'POST', payload);
             message.success({ content: 'Reassignment successful!', key: 'action', duration: 2 });
-            setReassignTargetUserId(null); // Clear selection
-            setActionComment(''); // Clear comment
-             router.push('/dashboard/Inbox');
+            setReassignTargetUserId(null);
+            setActionComment('');
+            router.push('/dashboard/Inbox');
         } catch (apiError: any) {
             message.error({ content: `Failed to process reassignment: ${apiError.message || 'Unknown error'}`, key: 'action', duration: 4 });
         } finally {
             setIsActionLoading(false);
         }
     };
-
 
     const handleResubmit = async () => {
         if (!letterId || !currentUser?.id || !isSubmitterOfRejectedLetter) return;
@@ -340,7 +393,6 @@ export default function LetterPdfReviewPage() {
             return;
         }
 
-         // Check if in signing mode and require placements if so
         if (isSigningMode && processingPdfInfo) {
             const hasSignature = placedItems.some(item => item.type === 'signature');
             const hasStamp = placedItems.some(item => item.type === 'stamp');
@@ -354,34 +406,40 @@ export default function LetterPdfReviewPage() {
             message.loading({ content: 'Generating signed PDF...', key: 'resubmit-action', duration: 0 });
 
             try {
-                 if (!processingPdfUrl) {
-                     throw new Error("No PDF available for processing.");
-                 }
+                if (!processingPdfUrl) {
+                    throw new Error("No PDF available for processing.");
+                }
                 const response = await fetch(processingPdfUrl, { credentials: 'include' });
                 if (!response.ok) throw new Error(`Failed to fetch uploaded PDF: ${response.statusText}`);
                 const pdfBytes = await response.arrayBuffer();
                 const pdfDoc = await PDFDocument.load(pdfBytes);
                 const pages = pdfDoc.getPages();
 
-                 if (pages.length !== numPages) {
-                      console.warn("Number of pages in loaded PDF doesn't match expected count.");
-                 }
-
+                if (pages.length !== numPages) {
+                    console.warn("Number of pages in loaded PDF doesn't match expected count.");
+                }
 
                 for (const item of placedItems) {
-                     // Ensure page number is valid for the current PDF
                     if (item.pageNumber < 1 || item.pageNumber > pages.length) {
-                         console.warn(`Skipping placement for item on invalid page ${item.pageNumber}`);
-                         continue;
+                        console.warn(`Skipping placement for item on invalid page ${item.pageNumber}`);
+                        continue;
                     }
 
                     const page = pages[item.pageNumber - 1];
-                    const pageDims = page.getSize(); // Get actual dimensions of the page from pdf-lib
+                    const pageDims = page.getSize();
 
+                    if (item.type === 'qrcode') {
+                        console.log('Skipping QR code placeholder in PDF generation');
+                        continue;
+                    }
+
+                    if (!item.url) {
+                        console.warn(`Skipping placement for item with no URL`);
+                        continue;
+                    }
 
                     let imageBytes: Buffer | null = null;
                     try {
-                         // Fetch the image bytes directly
                         const imgResponse = await axios.get(item.url, { responseType: 'arraybuffer', withCredentials: false });
                         imageBytes = Buffer.from(imgResponse.data);
                     } catch (fetchError: any) {
@@ -395,8 +453,8 @@ export default function LetterPdfReviewPage() {
                         if (item.url.toLowerCase().endsWith('.png')) pdfImage = await pdfDoc.embedPng(imageBytes);
                         else if (item.url.toLowerCase().endsWith('.jpg') || item.url.toLowerCase().endsWith('.jpeg')) pdfImage = await pdfDoc.embedJpg(imageBytes);
                         else {
-                             console.warn(`Skipping placement (unsupported image format): ${item.url}`);
-                             continue;
+                            console.warn(`Skipping placement (unsupported image format): ${item.url}`);
+                            continue;
                         }
                     } catch (embedError: any) {
                         console.error(`Failed to embed image ${item.url}: ${embedError.message}`);
@@ -404,16 +462,12 @@ export default function LetterPdfReviewPage() {
                     }
                     if (!pdfImage) continue;
 
-                    // Calculate absolute position and dimensions based on stored percentages
                     const absX = item.xPct * pageDims.width;
                     const absY = item.yPct * pageDims.height;
                     const absWidth = item.widthPct * pageDims.width;
                     const absHeight = item.heightPct * pageDims.height;
 
-
-                    // pdf-lib uses bottom-left origin, convert top-left Y
                     const pdfLibY = pageDims.height - absY - absHeight;
-
 
                     try {
                         page.drawImage(pdfImage, { x: absX, y: pdfLibY, width: absWidth, height: absHeight });
@@ -432,24 +486,22 @@ export default function LetterPdfReviewPage() {
                 const signedFilename = `${originalNameNoExt}-signed-${Date.now()}.pdf`;
                 formData.append('files', blob, signedFilename);
 
-                const authToken = typeof window !== 'undefined' ? localStorage.getItem('access_token_w') : null; // Placeholder
+                const authToken = typeof window !== 'undefined' ? localStorage.getItem('access_token_w') : null;
 
-console.log("access_token_w:", localStorage.getItem('access_token_w'));
-console.log("Signatures:", localStorage.getItem('signatures_r2'));
-                 if (!authToken) {
-                      message.error('Authentication token not found. Please log in again.');
-                      setIsProcessingResubmit(false);
-                      setIsActionLoading(false);
-                      return; // Stop the process
-                 }
+                if (!authToken) {
+                    message.error('Authentication token not found. Please log in again.');
+                    setIsProcessingResubmit(false);
+                    setIsActionLoading(false);
+                    return;
+                }
 
                 const uploadResponse = await fetch(`${API_BASE_URL}/files/upload`, {
                     method: 'POST',
                     credentials: 'include',
                     body: formData,
                     headers: {
-                       'Authorization': `Bearer ${authToken}`
-                   }
+                        'Authorization': `Bearer ${authToken}`
+                    }
                 });
 
                 if (!uploadResponse.ok) {
@@ -465,7 +517,6 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
 
                 let newSignedFileId: string | null = null;
 
-                // Extract the file ID from the upload response
                 if (
                     typeof uploadResultData === 'object' &&
                     uploadResultData !== null &&
@@ -483,14 +534,12 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
 
                 message.loading({ content: 'Submitting resubmission...', key: 'resubmit-action', duration: 0 });
 
-                // Call the resubmit API with the new file ID
                 const endpoint = `/letters/${letterId}/resubmit`;
                 const payload = { comment: resubmitComment, newSignedFileId: newSignedFileId };
                 await apiRequest(endpoint, 'POST', payload);
 
                 message.success({ content: 'Letter resubmitted successfully!', key: 'resubmit-action', duration: 2 });
 
-                 // Reset state after successful resubmission
                 setResubmitComment('');
                 setProcessingPdfInfo(null);
                 if (processingPdfUrl) URL.revokeObjectURL(processingPdfUrl);
@@ -500,12 +549,11 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                 setIsSigningMode(false);
                 setFileList([]);
                 setNumPages(null);
-                setPageDimensions({}); // Clear dimensions
+                setPageDimensions({});
                 setPdfScale(1.0);
                 setPageNumber(1);
 
-                 // Navigate back to the inbox or MyStaff as appropriate
-                router.push('/dashboard/MyStaff'); // Assuming submitters see MyStaff
+                router.push('/dashboard/MyStaff');
 
             } catch (apiError: any) {
                 message.error({ content: `Failed to resubmit signed letter: ${apiError.message || 'Unknown error'}`, key: 'resubmit-action', duration: 4 });
@@ -515,82 +563,69 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
             }
 
         } else {
-             // Handle resubmission without uploading a new PDF (e.g., just adding a comment)
-             setIsActionLoading(true);
-             message.loading({ content: 'Resubmitting letter...', key: 'resubmit-action', duration: 0 });
-             try {
-                 const endpoint = `/letters/${letterId}/resubmit`;
-                 const payload: { comment: string; newSignedFileId?: string } = {
-                     comment: resubmitComment
-                 };
-                  // No newSignedFileId is sent if no new PDF was uploaded
+            setIsActionLoading(true);
+            message.loading({ content: 'Resubmitting letter...', key: 'resubmit-action', duration: 0 });
+            try {
+                const endpoint = `/letters/${letterId}/resubmit`;
+                const payload: { comment: string; newSignedFileId?: string } = {
+                    comment: resubmitComment
+                };
 
-                 await apiRequest(endpoint, 'POST', payload);
-                 message.success({ content: 'Letter resubmitted successfully!', key: 'resubmit-action', duration: 2 });
-                 setResubmitComment('');
+                await apiRequest(endpoint, 'POST', payload);
+                message.success({ content: 'Letter resubmitted successfully!', key: 'resubmit-action', duration: 2 });
+                setResubmitComment('');
 
-                 // Reset signing mode state just in case
-                 setProcessingPdfInfo(null);
-                 if (processingPdfUrl) URL.revokeObjectURL(processingPdfUrl);
-                 setProcessingPdfUrl(null);
-                 setPlacedItems([]);
-                 setPlacingItem(null);
-                 setIsSigningMode(false);
-                 setFileList([]);
-                 setNumPages(null);
-                 setPageDimensions({});
-                 setPdfScale(1.0);
-                 setPageNumber(1);
+                setProcessingPdfInfo(null);
+                if (processingPdfUrl) URL.revokeObjectURL(processingPdfUrl);
+                setProcessingPdfUrl(null);
+                setPlacedItems([]);
+                setPlacingItem(null);
+                setIsSigningMode(false);
+                setFileList([]);
+                setNumPages(null);
+                setPageDimensions({});
+                setPdfScale(1.0);
+                setPageNumber(1);
 
+                router.push('/dashboard/MyStaff');
 
-                 router.push('/dashboard/MyStaff');
-
-             } catch (apiError: any) {
-                 message.error({ content: `Failed to resubmit letter: ${apiError.message || 'Unknown error'}`, key: 'resubmit-action', duration: 4 });
-             } finally {
-                 setIsActionLoading(false);
-             }
+            } catch (apiError: any) {
+                message.error({ content: `Failed to resubmit letter: ${apiError.message || 'Unknown error'}`, key: 'resubmit-action', duration: 4 });
+            } finally {
+                setIsActionLoading(false);
+            }
         }
     };
-
-
-    // --- PDF Viewer and Placement Handlers ---
 
     const handleZoomIn = () => setPdfScale(prev => Math.min(prev + ZOOM_STEP, MAX_SCALE));
     const handleZoomOut = () => setPdfScale(prev => Math.max(prev - ZOOM_STEP, MIN_SCALE));
     const handleResetZoom = () => setPdfScale(1.0);
 
     const handleSelectSignatureForPlacing = (sig: SignatureData) => {
-        // Use desired size at scale 1
         setPlacingItem({ type: 'signature', url: sig.r2Url, width: 100, height: 40 });
         setSelectedSignatureUrl(sig.r2Url);
         setSelectedStampUrl(null);
-         message.info('Click on the PDF page to place the signature.');
+        message.info('Click on the PDF page to place the signature.');
     };
 
     const handleSelectStampForPlacing = (stamp: StampData) => {
-        // Use desired size at scale 1
         setPlacingItem({ type: 'stamp', url: stamp.r2Url, width: 60, height: 60 });
         setSelectedStampUrl(stamp.r2Url);
         setSelectedSignatureUrl(null);
         message.info('Click on the PDF page to place the stamp.');
     };
 
-    // UPDATED handlePdfAreaClick logic for percentage-based placement
     const handlePdfAreaClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
-        if (!isSigningMode || !placingItem) return;
+        if (!(isSigningMode || isFinalApprovalSigningMode) || !placingItem) return;
 
-         // Find the specific page element that was clicked
         const pageEl = (event.target as HTMLElement).closest('.react-pdf__Page') as HTMLElement | null;
         if (!pageEl) return;
 
-        const pageRect = pageEl.getBoundingClientRect(); // Bounding rect of the scaled page element
+        const pageRect = pageEl.getBoundingClientRect();
 
-        // Get click position relative to the top-left of the scaled page element
         const clickX_scaled = event.clientX - pageRect.left;
         const clickY_scaled = event.clientY - pageRect.top;
 
-         // Get original (scale 1) dimensions of the current page
         const originalDims = pageDimensions[pageNumber];
         if (!originalDims) {
             console.error(`Original dimensions not available for page ${pageNumber}`);
@@ -598,41 +633,35 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
             return;
         }
 
-        // Convert click position back to coordinates on the original (scale 1) page
         const clickX_unscaled = clickX_scaled / pdfScale;
         const clickY_unscaled = clickY_scaled / pdfScale;
 
-        // Calculate the desired top-left position of the item on the original (scale 1) page
-        // We want the center of the item to be at the click point
         const itemOriginalWidth = placingItem.width;
         const itemOriginalHeight = placingItem.height;
 
         const itemTopLeftX_unscaled = clickX_unscaled - itemOriginalWidth / 2;
         const itemTopLeftY_unscaled = clickY_unscaled - itemOriginalHeight / 2;
 
-        // Calculate the position and dimensions as percentages of the original page dimensions
         const xPct = itemTopLeftX_unscaled / originalDims.width;
         const yPct = itemTopLeftY_unscaled / originalDims.height;
         const widthPct = itemOriginalWidth / originalDims.width;
         const heightPct = itemOriginalHeight / originalDims.height;
 
-         if (xPct < -0.1 || xPct > 1.1 || yPct < -0.1 || yPct > 1.1) {
-             console.warn("Calculated placement position seems off, skipping:", { xPct, yPct });
-             message.warning("Placement position is outside the page bounds.");
-             // Optionally recenter or adjust here, or just prevent placement
-             return;
-         }
-
+        if (xPct < -0.1 || xPct > 1.1 || yPct < -0.1 || yPct > 1.1) {
+            console.warn("Calculated placement position seems off, skipping:", { xPct, yPct });
+            message.warning("Placement position is outside the page bounds.");
+            return;
+        }
 
         const newItem: PlacedItem = {
             id: uuidv4(),
             type: placingItem.type,
-            url: placingItem.url,
+            url: placingItem.url || '',
             pageNumber,
-            xPct: Math.max(0, xPct), // Prevent placing slightly outside left/top bounds
-            yPct: Math.max(0, yPct), // Prevent placing slightly outside left/top bounds
-             widthPct: widthPct,
-             heightPct: heightPct
+            xPct: Math.max(0, xPct),
+            yPct: Math.max(0, yPct),
+            widthPct: widthPct,
+            heightPct: heightPct
         };
 
         setPlacedItems(p => [...p, newItem]);
@@ -640,15 +669,12 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
         setSelectedSignatureUrl(null);
         setSelectedStampUrl(null);
         message.success(`${placingItem.type.charAt(0).toUpperCase() + placingItem.type.slice(1)} placed on page ${pageNumber}.`);
-    }, [isSigningMode, placingItem, pageNumber, pdfScale, pageDimensions]); // Dependencies for useCallback
-
+    }, [isSigningMode, placingItem, pageNumber, pdfScale, pageDimensions, isFinalApprovalSigningMode]);
 
     const handleRemovePlacedItem = (itemId: string) => {
         setPlacedItems(prevItems => prevItems.filter(item => item.id !== itemId));
-         message.info('Placed item removed.');
+        message.info('Placed item removed.');
     };
-
-    // --- File Upload Handler for Resubmit ---
 
     const uploadProps: UploadProps = {
         name: 'pdfFile',
@@ -663,58 +689,53 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                 message.error('PDF must be smaller than 15MB!');
             }
             if (isPdf && isLt15M) {
-                 // Clean up previous blob URL if one exists
                 if (processingPdfUrl) {
                     URL.revokeObjectURL(processingPdfUrl);
                 }
-                // Create a new blob URL for the selected file
                 const blobUrl = URL.createObjectURL(file);
                 setProcessingPdfUrl(blobUrl);
                 setProcessingPdfInfo({
                     id: file.uid,
                     name: file.name,
-                    url: blobUrl, // Use the blob URL here for client-side rendering
+                    url: blobUrl,
                     size: file.size,
                     type: file.type,
                 });
                 setFileList([file]);
-                setIsSigningMode(true); // Enter signing mode
-                setPlacedItems([]); // Clear existing placements for the new PDF
-                setPageNumber(1); // Reset to first page
-                setPdfLoadError(null); // Clear any previous load errors
-                setPdfScale(1.0); // Reset zoom
-                setNumPages(null); // Reset page count until PDF loads
-                setPageDimensions({}); // Clear dimensions for the new PDF
+                setIsSigningMode(true);
+                setPlacedItems([]);
+                setPageNumber(1);
+                setPdfLoadError(null);
+                setPdfScale(1.0);
+                setNumPages(null);
+                setPageDimensions({});
             }
-            return false; // Prevent default upload behavior
+            return false;
         },
         accept: ".pdf",
         maxCount: 1,
         fileList: fileList,
         onRemove: (file) => {
-            // Clean up the blob URL when the file is removed
             if (processingPdfUrl) {
                 URL.revokeObjectURL(processingPdfUrl);
             }
-            // Reset all signing mode states
             setProcessingPdfInfo(null);
             setProcessingPdfUrl(null);
             setIsSigningMode(false);
             setPlacedItems([]);
-            setPlacingItem(null); // Clear placing item
-            setSelectedSignatureUrl(null); // Clear selected signature
-            setSelectedStampUrl(null); // Clear selected stamp
+            setPlacingItem(null);
+            setSelectedSignatureUrl(null);
+            setSelectedStampUrl(null);
             setFileList([]);
-            setNumPages(null); // Reset page count
-            setPageDimensions({}); // Clear dimensions
-            setPdfScale(1.0); // Reset zoom
-            setPageNumber(1); // Reset page number
-            setPdfLoadError(null); // Clear error
+            setNumPages(null);
+            setPageDimensions({});
+            setPdfScale(1.0);
+            setPageNumber(1);
+            setPdfLoadError(null);
             message.info('Uploaded PDF removed.');
-            return true; // Allow remove
+            return true;
         },
     };
-
 
     const renderActionButtons = () => {
         if (isUserLoading) return <Spin size="small" />;
@@ -722,21 +743,21 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
             const isFinalApprovalStep = letterDetails?.workflowStatus === LetterWorkflowStatus.PENDING_APPROVAL;
             return (
                 <Space wrap>
-                    <Button danger icon={<CloseOutlined />} onClick={handleReject} loading={isActionLoading} disabled={isActionLoading || isProcessingResubmit || (isFinalApprovalStep && !actionComment.trim()) || (!isFinalApprovalStep && !actionComment.trim())}> Reject </Button> {/* Require comment for rejection */}
-                    {!isFinalApprovalStep && ( <Button icon={<SendOutlined />} onClick={showReassignModal} loading={isActionLoading} disabled={isActionLoading || isProcessingResubmit || !actionComment.trim()}> Reassign </Button> )} {/* Require comment for reassign */}
+                    <Button danger icon={<CloseOutlined />} onClick={handleReject} loading={isActionLoading} disabled={isActionLoading || isProcessingResubmit || (isFinalApprovalStep && !actionComment.trim()) || (!isFinalApprovalStep && !actionComment.trim())}> Reject </Button>
+                    {!isFinalApprovalStep && ( <Button icon={<SendOutlined />} onClick={showReassignModal} loading={isActionLoading} disabled={isActionLoading || isProcessingResubmit || !actionComment.trim()}> Reassign </Button> )}
                     <Button type="primary" icon={<CheckOutlined />} onClick={handleApprove} loading={isActionLoading} disabled={isActionLoading || isProcessingResubmit}> {isFinalApprovalStep ? 'Final Approve' : 'Approve Step'} </Button>
                 </Space>
             );
         } else if (isSubmitterOfRejectedLetter) {
-             const canResubmit = !isActionLoading && !isProcessingResubmit && resubmitComment.trim();
-             const requiresPlacements = isSigningMode && (!placedItems.some(i=>i.type==='signature') || !placedItems.some(i=>i.type==='stamp'));
+            const canResubmit = !isActionLoading && !isProcessingResubmit && resubmitComment.trim();
+            const requiresPlacements = isSigningMode && (!placedItems.some(i=>i.type==='signature') || !placedItems.some(i=>i.type==='stamp'));
             return (
                 <Button
                     type="primary"
                     icon={<SyncOutlined />}
                     onClick={handleResubmit}
                     loading={isActionLoading || isProcessingResubmit}
-                    disabled={!canResubmit || requiresPlacements } // Disable if no comment or placements missing in signing mode
+                    disabled={!canResubmit || requiresPlacements }
                 >
                     Resubmit Letter
                 </Button>
@@ -772,14 +793,13 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
     const currentPdfSource = isSigningMode ? processingPdfUrl : pdfUrl;
     const pdfKey = isSigningMode ? processingPdfInfo?.id : letterDetails?.id;
 
-
     const renderContent = () => {
         if (isLoading || isUserLoading) { return <div className="text-center p-20"><Spin size="large" tip="Loading Letter..." /></div>; }
         if (error && !isSigningMode) { return <Alert message="Error Loading Letter" description={error} type="error" showIcon closable onClose={() => setError(null)} />; }
         if (!letterDetails) { return <Alert message="Letter Not Found" description="The requested letter could not be loaded." type="warning" showIcon />; }
 
         const showResubmitSection = isSubmitterOfRejectedLetter;
-        const showActionCommentArea = canTakeAction || (isSubmitterOfRejectedLetter && !isSigningMode); // Show comment area if action is needed or if resubmitting without new PDF
+        const showActionCommentArea = canTakeAction || (isSubmitterOfRejectedLetter && !isSigningMode);
 
         return (
             <>
@@ -792,9 +812,9 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                                 <p className="ant-upload-text">Click or drag a new PDF file here to replace and sign (Optional)</p>
                                 <p className="ant-upload-hint">Supports single PDF file up to 15MB.</p>
                             </Dragger>
-                             {!isSigningMode && ( // Only show this if not in signing mode (i.e., resubmitting existing or failed to upload)
+                            {!isSigningMode && (
                                 <TextArea rows={4} placeholder="Comment explaining changes (required)..." value={resubmitComment} onChange={(e) => setResubmitComment(e.target.value)} disabled={isActionLoading || isProcessingResubmit} />
-                             )}
+                            )}
                         </Space>
                     </Card>
                 )}
@@ -812,8 +832,8 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                                         </Space>
                                     )}
                                     {!numPages && (isSigningMode ? pdfLoadError : error) && <span className='text-red-500 text-xs'>Page info unavailable</span>}
-                                     {!numPages && !(isSigningMode ? pdfLoadError : error) && currentPdfSource && !isLoading && <span className='text-gray-500 text-xs'>Loading page info...</span>}
-                                     {!currentPdfSource && <span className='text-gray-500 text-xs'>No PDF document</span>}
+                                    {!numPages && !(isSigningMode ? pdfLoadError : error) && currentPdfSource && !isLoading && <span className='text-gray-500 text-xs'>Loading page info...</span>}
+                                    {!currentPdfSource && <span className='text-gray-500 text-xs'>No PDF document</span>}
                                 </div>
                                 <Space>
                                     <Button icon={<ZoomOutOutlined />} onClick={handleZoomOut} disabled={pdfScale <= MIN_SCALE || !numPages || !currentPdfSource} size="small" />
@@ -825,76 +845,107 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                             <div
                                 ref={pdfContainerRef}
                                 className="flex-1 overflow-auto p-2 relative bg-gray-50"
-                                // Attach click handler only in signing mode AND if an item is selected for placing
-                                onClick={isSigningMode && placingItem ? handlePdfAreaClick : undefined}
-                                style={{ cursor: isSigningMode && placingItem ? 'copy' : 'default' }}
+                                onClick={(isSigningMode || isFinalApprovalSigningMode) && placingItem ? handlePdfAreaClick : undefined}
+                                style={{ cursor: (isSigningMode || isFinalApprovalSigningMode) && placingItem ? 'copy' : 'default' }}
                             >
                                 {currentPdfSource ? (
                                     <Document
-                                        key={pdfKey} // Use key to force re-render Document when source changes
+                                        key={pdfKey}
                                         file={currentPdfSource}
                                         onLoadSuccess={({ numPages: totalPages }) => {
                                             setNumPages(totalPages);
                                             setPdfLoadError(null);
-                                             // Clear previous dimensions, new dimensions will be added per page
                                             setPageDimensions({});
                                         }}
                                         onLoadError={(err) => {
                                             console.error("PDF Load Error:", err);
                                             setPdfLoadError(`Failed to load PDF: ${err.message}`);
                                             setNumPages(null);
-                                            setPageDimensions({}); // Clear dimensions on error
+                                            setPageDimensions({});
                                         }}
                                         loading={<div className="text-center p-10"><Spin tip="Loading PDF..." /></div>}
                                         error={<Alert message="Error" description={pdfLoadError || "Could not load PDF document."} type="error" showIcon />}
-                                        className="flex justify-center items-start" // Centers the page horizontally
+                                        className="flex justify-center items-start"
                                     >
                                         <Page
-                                            key={`page_${pageNumber}_${pdfScale}`} // Key changes with page and scale to force render
+                                            key={`page_${pageNumber}_${pdfScale}`}
                                             pageNumber={pageNumber}
                                             scale={pdfScale}
                                             onLoadSuccess={p => {
-                                                const viewport = p.getViewport({ scale: 1 }); // Get viewport at scale 1
-                                                 // Store original (scale 1) dimensions
+                                                const viewport = p.getViewport({ scale: 1 });
                                                 setPageDimensions(d => ({ ...d, [pageNumber]: { width: viewport.width, height: viewport.height } }));
                                             }}
                                             renderTextLayer
-                                            renderAnnotationLayer={false} // Disable default annotations layer if you place custom items
-                                            className="shadow-lg" // Apply shadow to the page element
-                                            loading={<div style={{ height: '500px' }}><Spin /></div>} // Loader for individual pages
+                                            renderAnnotationLayer={false}
+                                            className="shadow-lg"
+                                            loading={<div style={{ height: '500px' }}><Spin /></div>}
                                         >
-                                             {/* Render placed items */}
-                                            {isSigningMode && placedItems.filter(item => item.pageNumber === pageNumber).map(item => {
-                                                const dims = pageDimensions[item.pageNumber]; // Get original page dimensions
-                                                if (!dims) return null; // Don't render if original dimensions aren't known yet
+                                            {(isSigningMode || isFinalApprovalSigningMode) && placedItems.filter(item => item.pageNumber === pageNumber).map((item, index) => {
+                                                const dims = pageDimensions[item.pageNumber];
+                                                if (!dims) return null;
 
-                                                 // Calculate absolute position and size based on percentages and current scale
                                                 const left = item.xPct * dims.width * pdfScale;
                                                 const top = item.yPct * dims.height * pdfScale;
                                                 const width = item.widthPct * dims.width * pdfScale;
                                                 const height = item.heightPct * dims.height * pdfScale;
 
                                                 return (
-                                                    <Tooltip key={item.id} title="Click to remove">
-                                                        <img
-                                                            src={item.url}
-                                                            alt={item.type}
-                                                            style={{
-                                                                position: 'absolute',
-                                                                left: `${left}px`,
-                                                                top: `${top}px`,
-                                                                width: `${width}px`,
-                                                                height: `${height}px`,
-                                                                cursor: 'pointer',
-                                                                border: '1px dashed rgba(128,128,128,0.7)',
-                                                                objectFit: 'contain', // Ensures image fits within bounds without distortion
-                                                                userSelect: 'none', // Prevent dragging the image itself
-                                                                // transformOrigin: 'top left', // Default, can be useful sometimes
-                                                                zIndex: 10 // Ensure placed items are above the PDF content
-                                                            }}
-                                                            onClick={e => { e.stopPropagation(); handleRemovePlacedItem(item.id); }} // Stop propagation to prevent placing another item
-                                                        />
-                                                    </Tooltip>
+                                                    <div
+                                                        key={index}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            left: `${left}px`,
+                                                            top: `${top}px`,
+                                                            width: `${width}px`,
+                                                            height: `${height}px`,
+                                                        }}
+                                                    >
+                                                        <img src={item.url} alt="Placed item" style={{ width: '100%', height: '100%' }} />
+                                                    </div>
+                                                );
+                                            })}
+
+                                            {!isSigningMode && letterDetails?.placements?.filter(item => item.pageNumber === pageNumber).map((item, index) => {
+                                                const dims = pageDimensions[item.pageNumber];
+                                                if (!dims) return null;
+
+                                                const scaledX = item.x * pdfScale;
+                                                const scaledY = item.y * pdfScale;
+                                                const scaledWidth = item.width * pdfScale;
+                                                const scaledHeight = item.height * pdfScale;
+
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        style={{
+                                                            position: 'absolute',
+                                                            left: `${scaledX}px`,
+                                                            top: `${scaledY}px`,
+                                                            width: `${scaledWidth}px`,
+                                                            height: `${scaledHeight}px`,
+                                                        }}
+                                                    >
+                                                        {item.type === 'qrcode' ? (
+                                                            <div 
+                                                                style={{ 
+                                                                    width: '100%', 
+                                                                    height: '100%', 
+                                                                    backgroundColor: QR_PLACEHOLDER_COLOR,
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    color: 'white',
+                                                                    fontWeight: 'bold',
+                                                                    border: '2px dashed white',
+                                                                    borderRadius: '4px'
+                                                                }}
+                                                            >
+                                                                {QR_PLACEHOLDER_TEXT}
+                                                            </div>
+                                                        ) : (
+                                                            <img src={item.url} alt="Existing placement" style={{ width: '100%', height: '100%' }} />
+                                                        )}
+                                                    </div>
                                                 );
                                             })}
                                         </Page>
@@ -904,24 +955,13 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                         </div>
                     </Col>
                     <Col xs={24} lg={8}>
-                         <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4" style={{ display: 'flex', flexDirection: 'column', maxHeight: '75vh', overflowY: 'auto' }}> {/* Added max height and overflow */}
-
-                            {isSigningMode && (
+                        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4" style={{ display: 'flex', flexDirection: 'column', maxHeight: '75vh', overflowY: 'auto' }}>
+                            {isFinalApprovalSigningMode && (
                                 <div className="border-b pb-4 mb-4 space-y-3">
-                                    <Title level={5} style={{ marginBottom: '8px' }}>Place Signature & Stamp</Title>
-                                    {placingItem && (
-                                        <Alert message={`Click on the PDF page ${pageNumber} to place the selected ${placingItem.type}.`} type="info" showIcon closable onClose={() => setPlacingItem(null)} />
-                                    )}
-                                    {!placingItem && placedItems.length > 0 && (
-                                        <Alert message="Click on a placed item on the PDF to remove it." type="info" showIcon />
-                                    )}
-                                     {!placingItem && placedItems.length === 0 && (
-                                          <Alert message="Select a signature or stamp below, then click on the PDF to place it." type="info" showIcon />
-                                     )}
-
+                                    <Title level={5} style={{ marginBottom: '8px' }}>Select Signature & Stamp</Title>
                                     <div>
                                         <Typography.Title level={5} style={{ marginBottom: '8px' }}>Select Signature</Typography.Title>
-                                        {savedSignatures.length === 0 ? (<Typography.Text type="secondary">No signatures saved. Go to profile to upload.</Typography.Text>) : (
+                                        {savedSignatures.length === 0 ? (<Typography.Text type="secondary">No signatures saved...</Typography.Text>) : (
                                             <div className="flex flex-wrap gap-2">
                                                 {savedSignatures.map(sig => (
                                                     <button
@@ -929,8 +969,7 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                                                         type="button"
                                                         onClick={() => handleSelectSignatureForPlacing(sig)}
                                                         className={`p-1 border rounded-md transition-all ${selectedSignatureUrl === sig.r2Url ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-300 hover:border-gray-400'}`}
-                                                        title={sig.name || `Signature`}
-                                                         disabled={placingItem !== null} // Disable selecting another item while placing one
+                                                        title={sig.name || 'Signature'}
                                                     >
                                                         <AntImage src={sig.r2Url} alt={sig.name || 'Signature'} width={80} height={35} preview={false} className="object-contain" />
                                                     </button>
@@ -938,10 +977,9 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                                             </div>
                                         )}
                                     </div>
-
                                     <div>
                                         <Typography.Title level={5} style={{ marginBottom: '8px' }}>Select Stamp</Typography.Title>
-                                        {savedStamps.length === 0 ? (<Typography.Text type="secondary">No stamps saved. Go to profile to upload.</Typography.Text>) : (
+                                        {savedStamps.length === 0 ? (<Typography.Text type="secondary">No stamps saved...</Typography.Text>) : (
                                             <div className="flex flex-wrap gap-2">
                                                 {savedStamps.map(stamp => (
                                                     <button
@@ -949,8 +987,7 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                                                         type="button"
                                                         onClick={() => handleSelectStampForPlacing(stamp)}
                                                         className={`p-1 border rounded-full transition-all ${selectedStampUrl === stamp.r2Url ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-300 hover:border-gray-400'}`}
-                                                        title={stamp.name || `Stamp`}
-                                                        disabled={placingItem !== null} // Disable selecting another item while placing one
+                                                        title={stamp.name || 'Stamp'}
                                                     >
                                                         <AntImage src={stamp.r2Url} alt={stamp.name || 'Stamp'} width={45} height={45} preview={false} className="object-contain rounded-full" />
                                                     </button>
@@ -958,31 +995,6 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                                             </div>
                                         )}
                                     </div>
-
-                                    {placedItems.length > 0 && (
-                                        <div>
-                                            <Typography.Title level={5} style={{ marginBottom: '8px' }}>Placed Items ({placedItems.length})</Typography.Title>
-                                            <List size="small" bordered dataSource={placedItems} locale={{ emptyText: "Click Signature/Stamp then click on PDF." }}
-                                                renderItem={item => (
-                                                    <List.Item
-                                                        actions={[<Button type="link" danger size="small" icon={<DeleteOutlined />} onClick={() => handleRemovePlacedItem(item.id)}>Remove</Button>]}
-                                                    >
-                                                        <List.Item.Meta
-                                                            avatar={<Avatar size="small" src={item.url} />}
-                                                            title={`${item.type.charAt(0).toUpperCase() + item.type.slice(1)} on page ${item.pageNumber}`}
-                                                        />
-                                                    </List.Item>
-                                                )} />
-                                        </div>
-                                    )}
-
-                                     {isSubmitterOfRejectedLetter && isSigningMode && (
-                                          <div>
-                                               <Typography.Title level={5} style={{ marginBottom: '8px' }}>Resubmission Comment</Typography.Title>
-                                               <TextArea rows={4} placeholder="Comment explaining changes (required)..." value={resubmitComment} onChange={(e) => setResubmitComment(e.target.value)} disabled={isActionLoading || isProcessingResubmit} />
-                                          </div>
-                                     )}
-
                                 </div>
                             )}
 
@@ -995,9 +1007,9 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                                             <Text type="secondary" className="block mt-1"> Waiting for: {getUserFullName(letterDetails.letterReviewers?.find(r => r.userId === letterDetails.nextActionById)?.user)} </Text>
                                         )}
                                     </div>
-                                    <div className="flex-grow overflow-hidden flex flex-col"> {/* Added flex-grow and overflow */}
+                                    <div className="flex-grow overflow-hidden flex flex-col">
                                         <Title level={5}><HistoryOutlined /> Action History & Comments</Title>
-                                         <div className="flex-grow overflow-y-auto pr-2 mb-2"> {/* Added flex-grow and overflow-y-auto */}
+                                        <div className="flex-grow overflow-y-auto pr-2 mb-2">
                                             <List itemLayout="horizontal" dataSource={letterDetails.letterActionLogs ?? []} locale={{ emptyText: "No actions logged yet." }}
                                                 renderItem={item => (
                                                     <List.Item>
@@ -1027,20 +1039,19 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                                             />
                                         </div>
                                     </div>
-                                     {showActionCommentArea && (
-                                         <div className='mt-auto pt-2 border-t'>
-                                              <Title level={5} style={{ marginBottom: '8px' }}>Action Comment / Reason</Title>
-                                              <TextArea
-                                                   rows={3}
-                                                   placeholder={canTakeAction ? "Enter reason for rejection, note for reassignment, or comment for approval..." : "Comment explaining changes (required)..."}
-                                                   value={actionComment}
-                                                   onChange={(e) => setActionComment(e.target.value)}
-                                                   disabled={isActionLoading}
-                                              />
-                                              {canTakeAction && <Text type="secondary" className='text-xs block mt-1'>This comment/reason will be saved when you click Reject or Reassign.</Text>}
-                                         </div>
-                                     )}
-
+                                    {showActionCommentArea && (
+                                        <div className='mt-auto pt-2 border-t'>
+                                            <Title level={5} style={{ marginBottom: '8px' }}>Action Comment / Reason</Title>
+                                            <TextArea
+                                                rows={3}
+                                                placeholder={canTakeAction ? "Enter reason for rejection, note for reassignment, or comment for approval..." : "Comment explaining changes (required)..."}
+                                                value={actionComment}
+                                                onChange={(e) => setActionComment(e.target.value)}
+                                                disabled={isActionLoading}
+                                            />
+                                            {canTakeAction && <Text type="secondary" className='text-xs block mt-1'>This comment/reason will be saved when you click Reject or Reassign.</Text>}
+                                        </div>
+                                    )}
 
                                     <div>
                                         <Title level={5} style={{ marginTop: '16px' }}>Reviewers & Approver</Title>
@@ -1078,8 +1089,7 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                     <span className="ml-4 pl-4 border-l border-gray-300">Current Status: <Tag color={getStatusColor(letterDetails.workflowStatus)}>{formatStatus(letterDetails.workflowStatus)}</Tag></span>
                 </div>
             )}
-             {/* Render error outside of renderContent if it should persist */}
-             {error && isSigningMode && <Alert message="PDF Load Error" description={error} type="error" showIcon closable onClose={() => setError(null)} className="mb-4" />}
+            {error && isSigningMode && <Alert message="PDF Load Error" description={error} type="error" showIcon closable onClose={() => setError(null)} className="mb-4" />}
 
             {renderContent()}
 
@@ -1088,9 +1098,7 @@ console.log("Signatures:", localStorage.getItem('signatures_r2'));
                 <Select showSearch placeholder="Select a user to reassign to" style={{ width: '100%', marginBottom: '10px' }} value={reassignTargetUserId} onChange={(value) => setReassignTargetUserId(value)} filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())} loading={reassignOptions.length === 0} >
                     {reassignOptions.map(user => ( <Option key={user.id} value={user.id} label={getUserFullName(user)}> <Space> <Avatar src={user.avatar} size="small">{getInitials(user)}</Avatar> {getUserFullName(user)} ({user.email}) </Space> </Option> ))}
                 </Select>
-                 {/* Reassign comment is taken from the main action comment area */}
-                 <Alert message="Note:" description="The comment for this reassignment will be taken from the 'Action Comment / Reason' text area on the main page." type="info" showIcon />
-
+                <Alert message="Note:" description="The comment for this reassignment will be taken from the 'Action Comment / Reason' text area on the main page." type="info" showIcon />
             </Modal>
         </div>
     );

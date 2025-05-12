@@ -6,7 +6,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { v4 as uuidv4 } from 'uuid';
 import Uppy from '@uppy/core';
 import XHRUpload from '@uppy/xhr-upload';
-import { ZoomInOutlined, ZoomOutOutlined, UndoOutlined, PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, DeleteOutlined, UploadOutlined, SyncOutlined } from '@ant-design/icons';
+import { ZoomInOutlined, ZoomOutOutlined, UndoOutlined, PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, DeleteOutlined, UploadOutlined, SyncOutlined, QrcodeOutlined } from '@ant-design/icons'; // Added QrcodeOutlined
 import '@uppy/core/dist/style.css';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -16,14 +16,50 @@ pdfjs.GlobalWorkerOptions.workerSrc = `/lib/pdfjs/pdf.worker.min.mjs`;
 interface SignatureData { id: string; r2Url: string; name?: string; createdAt: string }
 interface StampData { id: string; r2Url: string; name?: string; createdAt: string }
 interface UnallocatedFile { id: string; name: string; url: string; size: number; mimetype: string; userId: string; isAllocated: boolean; createdAt: string; updatedAt: string }
-interface PlacedItem { id: string; type: 'signature' | 'stamp'; url: string; pageNumber: number; xPct: number; yPct: number; widthPct: number; heightPct: number }
-interface PlacingItemInfo { type: 'signature' | 'stamp'; url: string; width: number; height: number }
-interface PlacementInfoForBackend { type: 'signature' | 'stamp'; url: string; pageNumber: number; x: number; y: number; width: number; height: number }
+
+// MODIFIED: PlacedItem interface
+interface PlacedItem {
+    id: string;
+    type: 'signature' | 'stamp' | 'qrcode'; // Added 'qrcode'
+    url?: string; // Optional: QR code placeholder might not have a URL from Uppy
+    pageNumber: number;
+    xPct: number;
+    yPct: number;
+    widthPct: number;
+    heightPct: number;
+}
+
+// MODIFIED: PlacingItemInfo interface
+interface PlacingItemInfo {
+    type: 'signature' | 'stamp' | 'qrcode'; // Added 'qrcode'
+    url?: string; // URL of signature/stamp image, or a special identifier for QR
+    width: number; // Default width in PDF units for initial placement
+    height: number; // Default height in PDF units for initial placement
+}
+
+// MODIFIED: PlacementInfoForBackend interface
+interface PlacementInfoForBackend {
+    type: 'signature' | 'stamp' | 'qrcode'; // Added 'qrcode'
+    url?: string; // URL for signature/stamp, special identifier or null for QR placeholder
+    pageNumber: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
 interface SaveSignedLetterPayload_Interactive { originalFileId: string; placements: PlacementInfoForBackend[]; reviewers?: string[]; approver?: string; name?: string }
 interface SavedLetterResponse { id: string; letterUrl: string }
 type UppyMetaData = { storage: string; markAsUnallocated: boolean }
 type UppyBody = Record<string, unknown>
 interface UserOption { value: string; label: string }
+
+// Constants for QR Placeholder
+const QR_PLACEHOLDER_IDENTIFIER = 'QR_PLACEHOLDER_INTERNAL_ID'; // Special identifier
+const QR_PLACEHOLDER_COLOR = 'rgba(0, 150, 50, 0.7)'; // Darker Green
+const QR_PLACEHOLDER_TEXT = 'QR';
+const DEFAULT_QR_PLACEHOLDER_SIZE_PX = 50; // Default visual size in pixels on screen for selection (can be different from PDF points)
+const DEFAULT_QR_PLACEHOLDER_PDF_UNITS = 50; // Default size in PDF points for the placeholder
 
 async function apiRequest<T>(endpoint: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', body?: any): Promise<T> {
     const headers: HeadersInit = { 'Content-Type': 'application/json' }
@@ -56,6 +92,9 @@ const UploadAndSignPdf: React.FC = () => {
     const [placingItem, setPlacingItem] = useState<PlacingItemInfo | null>(null)
     const [selectedSignatureUrl, setSelectedSignatureUrl] = useState<string | null>(null)
     const [selectedStampUrl, setSelectedStampUrl] = useState<string | null>(null)
+    // ADDED: State to track if QR placeholder selection is active for UI feedback
+    const [isPlacingQr, setIsPlacingQr] = useState<boolean>(false);
+
     const [approverOptions, setApproverOptions] = useState<UserOption[]>([])
     const [selectedApprover, setSelectedApprover] = useState<string | null>(null)
     const [pdfScale, setPdfScale] = useState<number>(1)
@@ -120,44 +159,20 @@ const UploadAndSignPdf: React.FC = () => {
                 fieldName: 'files',
                 bundle: false,
                 headers: () => {
-                    const h: Record<string, string> = {}
-                    return h
+                    const token = window.localStorage.getItem('access_token_w');
+                    const headers: Record<string, string> = {};
+                    if (token) { headers.Authorization = `Bearer ${token}`; }
+                    return headers;
                 }
             })
 
-            uppy.on('upload', () => {
-                setIsUploading(true)
-                setUploadProgress(0)
-            })
-
-            uppy.on('upload-progress', () => {
-                const totalProgress = uppy.getState().totalProgress || 0
-                setUploadProgress(totalProgress)
-            })
-
-            uppy.on('upload-success', file => {
-                if (file) {
-                    message.success(`${file.name} uploaded`)
-                } else {
-                    message.success(`File uploaded successfully`)
-                }
-                fetchUnallocatedFiles()
-            })
-
-            uppy.on('complete', () => {
-                setIsUploading(false)
-                setUploadProgress(0)
-                setUploadingFileName(null)
-            })
-
+            uppy.on('upload', () => { setIsUploading(true); setUploadProgress(0); })
+            uppy.on('upload-progress', () => { const totalProgress = uppy.getState().totalProgress || 0; setUploadProgress(totalProgress); })
+            uppy.on('upload-success', file => { message.success(`${file?.name || 'File'} uploaded`); fetchUnallocatedFiles(); })
+            uppy.on('complete', () => { setIsUploading(false); setUploadProgress(0); setUploadingFileName(null); })
             uppyInstance.current = uppy
         }
-        return () => {
-            if (uppyInstance.current) {
-                uppyInstance.current.cancelAll()
-                uppyInstance.current = null
-            }
-        }
+        return () => { if (uppyInstance.current) { uppyInstance.current.cancelAll(); uppyInstance.current = null; } }
     }, [fetchUnallocatedFiles])
 
     useEffect(() => { fetchUnallocatedFiles() }, [fetchUnallocatedFiles])
@@ -189,6 +204,7 @@ const UploadAndSignPdf: React.FC = () => {
         setPlacingItem(null)
         setSelectedSignatureUrl(null)
         setSelectedStampUrl(null)
+        setIsPlacingQr(false); // ADDED: Reset QR placing state
         setNumPages(null)
         setPageNumber(1)
         setPdfLoadError(null)
@@ -208,6 +224,7 @@ const UploadAndSignPdf: React.FC = () => {
             setPlacingItem(null)
             setSelectedSignatureUrl(null)
             setSelectedStampUrl(null)
+            setIsPlacingQr(false); // ADDED: Reset QR placing state
             setNumPages(null)
             setPageNumber(1)
             setPdfLoadError(null)
@@ -225,13 +242,28 @@ const UploadAndSignPdf: React.FC = () => {
         setPlacingItem({ type: 'signature', url: sig.r2Url, width: 100, height: 40 })
         setSelectedSignatureUrl(sig.r2Url)
         setSelectedStampUrl(null)
+        setIsPlacingQr(false); // ADDED
     }
 
     const handleSelectStampForPlacing = (stamp: StampData) => {
         setPlacingItem({ type: 'stamp', url: stamp.r2Url, width: 60, height: 60 })
         setSelectedStampUrl(stamp.r2Url)
         setSelectedSignatureUrl(null)
+        setIsPlacingQr(false); // ADDED
     }
+
+    // ADDED: Handler for selecting QR code placeholder
+    const handleSelectQrCodeForPlacing = () => {
+        setPlacingItem({
+            type: 'qrcode',
+            url: QR_PLACEHOLDER_IDENTIFIER, // Special identifier for backend
+            width: DEFAULT_QR_PLACEHOLDER_PDF_UNITS, // Use PDF units for consistency
+            height: DEFAULT_QR_PLACEHOLDER_PDF_UNITS,
+        });
+        setSelectedSignatureUrl(null);
+        setSelectedStampUrl(null);
+        setIsPlacingQr(true); // Set QR placing state
+    };
 
     const handlePdfAreaClick = (event: React.MouseEvent<HTMLDivElement>) => {
         if (!placingItem || !processingFile) return
@@ -239,59 +271,102 @@ const UploadAndSignPdf: React.FC = () => {
         const rect = wrapper.getBoundingClientRect()
         const dims = pageDimensions[pageNumber]
         if (!dims) return
+
+        // Calculate actual rendered dimensions of the PDF page within the scaled view
         const renderedW = dims.width * pdfScale
         const renderedH = dims.height * pdfScale
+
+        // Calculate offset of the rendered PDF within its container (if centered)
         const offsetX = (wrapper.clientWidth - renderedW) / 2
-        const clickX = event.clientX - rect.left - offsetX + wrapper.scrollLeft
-        const clickY = event.clientY - rect.top + wrapper.scrollTop
-        if (clickX < 0 || clickY < 0 || clickX > renderedW || clickY > renderedH) return
-        const xPct = clickX / renderedW
-        const yPct = clickY / renderedH
-        const widthPct = placingItem.width / dims.width
-        const heightPct = placingItem.height / dims.height
-        const newItem: PlacedItem = { id: uuidv4(), type: placingItem.type, url: placingItem.url, pageNumber, xPct, yPct, widthPct, heightPct }
-        setPlacedItems(prev => [...prev, newItem])
-        setPlacingItem(null)
-    }
+        // const offsetY = (wrapper.clientHeight - renderedH) / 2; // If vertical centering is also applied
+
+        // Adjust click coordinates relative to the PDF page itself, considering scroll and offset
+        const clickXOnPage = event.clientX - rect.left - offsetX + wrapper.scrollLeft
+        const clickYOnPage = event.clientY - rect.top + wrapper.scrollTop // Corrected, assuming offsetY isn't needed if scroll handles it
+
+        // Check if click is within the rendered page boundaries
+        if (clickXOnPage < 0 || clickYOnPage < 0 || clickXOnPage > renderedW || clickYOnPage > renderedH) {
+            // message.warn("Clicked outside the PDF page area.");
+            return;
+        }
+
+        // Calculate percentage position relative to the original page dimensions
+        const xPct = clickXOnPage / renderedW;
+        const yPct = clickYOnPage / renderedH;
+
+        // Calculate placeholder width/height in percentage relative to original page dimensions
+        // placingItem.width and placingItem.height are in PDF points (or a similar unit)
+        const widthPct = placingItem.width / dims.width;
+        const heightPct = placingItem.height / dims.height;
+
+        const newItem: PlacedItem = {
+            id: uuidv4(),
+            type: placingItem.type,
+            url: placingItem.type !== 'qrcode' ? placingItem.url : undefined, // QR Placeholder doesn't have a display URL
+            pageNumber,
+            xPct,
+            yPct,
+            widthPct,
+            heightPct,
+        };
+        setPlacedItems(prev => [...prev, newItem]);
+        setPlacingItem(null);
+        setIsPlacingQr(false); // Reset QR placing state
+    };
+
 
     const handleRemovePlacedItem = (id: string) => setPlacedItems(prev => prev.filter(i => i.id !== id))
-
     const handleApproverChange = (value: string | null) => setSelectedApprover(value)
 
     const handleSaveSignedLetter = async () => {
-        if (!processingFile) { message.error('No file'); return }
-        if (!placedItems.some(i => i.type === 'signature') || !placedItems.some(i => i.type === 'stamp')) { message.warning('Add signature and stamp'); return }
-        if (selectedReviewers.length === 0) { message.warning('Add reviewer'); return }
+        if (!processingFile) { message.error('No file selected for processing.'); return }
+        if (placedItems.length === 0) { message.warning('Please add at least one item (signature, stamp, or QR placeholder).'); return; }
+        if (!selectedReviewers || selectedReviewers.length === 0) { message.warning('Please add at least one reviewer.'); return }
+        // if (!selectedApprover) { message.warning('Please select a final approver.'); return; } // Making approver optional as per existing code
 
-        const placementsForBackend: PlacementInfoForBackend[] = placedItems.map(item => {
-            const dims = pageDimensions[item.pageNumber]
-            const x = item.xPct * dims.width
-            const y = item.yPct * dims.height
-            const width = item.widthPct * dims.width
-            const height = item.heightPct * dims.height
-            return { type: item.type, url: item.url, pageNumber: item.pageNumber, x, y, width, height }
-        })
-
-        const payload: SaveSignedLetterPayload_Interactive = {
-            originalFileId: processingFile.id,
-            placements: placementsForBackend,
-            reviewers: selectedReviewers,
-            approver: selectedApprover ?? undefined,
-            name: processingFile.name
-        }
-
+        setIsSavingLetter(true);
         try {
-            setIsSavingLetter(true)
-            const saved = await apiRequest<SavedLetterResponse>('/letters/from-pdf-interactive', 'POST', payload)
-            message.success(`Letter created (${saved.id})`)
-            handleCloseSignModal()
-            setSelectedFileIds([])
-            fetchUnallocatedFiles()
+            const placementsForBackend: PlacementInfoForBackend[] = placedItems.map(item => {
+                const dims = pageDimensions[item.pageNumber];
+                if (!dims) throw new Error(`Dimensions for page ${item.pageNumber} not found.`);
+
+                const x = item.xPct * dims.width;
+                const y = item.yPct * dims.height; // Y from top
+                const width = item.widthPct * dims.width;
+                const height = item.heightPct * dims.height;
+
+                return {
+                    type: item.type,
+                    url: item.type === 'qrcode' ? QR_PLACEHOLDER_IDENTIFIER : item.url, // Use special ID for QR
+                    pageNumber: item.pageNumber,
+                    x,
+                    y,
+                    width,
+                    height,
+                };
+            });
+
+            const payload: SaveSignedLetterPayload_Interactive = {
+                originalFileId: processingFile.id,
+                placements: placementsForBackend,
+                reviewers: selectedReviewers,
+                approver: selectedApprover ?? undefined,
+                name: processingFile.name,
+            };
+
+            const saved = await apiRequest<SavedLetterResponse>('/letters/from-pdf-interactive', 'POST', payload);
+            message.success(`Letter created and submitted for review (ID: ${saved.id})`);
+            handleCloseSignModal();
+            setSelectedFileIds([]);
+            fetchUnallocatedFiles();
         } catch (error: any) {
-            console.error(error)
-            message.error(error.message)
-        } finally { setIsSavingLetter(false) }
-    }
+            console.error('Error saving signed letter:', error);
+            message.error(`Failed to save letter: ${error.message}`);
+        } finally {
+            setIsSavingLetter(false);
+        }
+    };
+
 
     const handleAddReviewer = () => {
         if (!reviewerToAdd) { message.warning('Select reviewer'); return }
@@ -300,9 +375,7 @@ const UploadAndSignPdf: React.FC = () => {
         setSelectedReviewers(prev => [...prev, reviewerToAdd])
         setReviewerToAdd(null)
     }
-
     const handleRemoveReviewer = (idx: number) => setSelectedReviewers(prev => prev.filter((_, i) => i !== idx))
-
     const handleMoveReviewer = (idx: number, dir: 'up' | 'down') => {
         if (dir === 'up' && idx === 0) return
         if (dir === 'down' && idx === selectedReviewers.length - 1) return
@@ -311,14 +384,11 @@ const UploadAndSignPdf: React.FC = () => {
         ;[list[idx], list[swap]] = [list[swap], list[idx]]
         setSelectedReviewers(list)
     }
-
     const handleZoomIn = () => setPdfScale(prev => Math.min(prev + ZOOM_STEP, MAX_SCALE))
     const handleZoomOut = () => setPdfScale(prev => Math.max(prev - ZOOM_STEP, MIN_SCALE))
     const handleResetZoom = () => setPdfScale(1)
-
     const availableReviewerOptions = allReviewerOptions.filter(o => !selectedReviewers.includes(o.value))
     const getReviewerLabel = (id: string) => allReviewerOptions.find(o => o.value === id)?.label || 'Unknown'
-
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!uppyInstance.current) { message.error('Uploader not ready'); return }
         const files = Array.from(e.target.files || [])
@@ -326,7 +396,7 @@ const UploadAndSignPdf: React.FC = () => {
             uppyInstance.current?.addFile({ source: 'react-file-input', name: f.name, type: f.type, data: f, meta: { storage: 'cloudflare_r2', markAsUnallocated: true } })
             setUploadingFileName(f.name)
         })
-        e.target.value = ''
+        if (e.target) e.target.value = ''; // Reset file input
     }
 
     const fileColumns: TableProps<UnallocatedFile>['columns'] = [
@@ -335,10 +405,9 @@ const UploadAndSignPdf: React.FC = () => {
         { title: 'Type', dataIndex: 'mimetype', key: 'mimetype', width: 130 },
         { title: 'Upload Date', dataIndex: 'createdAt', key: 'createdAt', width: 180, render: d => d ? new Date(d).toLocaleString() : '-' }
     ]
-
     const rowSelection = { selectedRowKeys: selectedFileIds, onChange: handleFileSelectionChange, type: 'checkbox' as const }
-
-    const canSaveChanges = placedItems.some(i => i.type === 'signature') && placedItems.some(i => i.type === 'stamp')
+    // const canSaveChanges = placedItems.some(i => i.type === 'signature') && placedItems.some(i => i.type === 'stamp');
+    const canSaveChanges = placedItems.length > 0 && selectedReviewers.length > 0; // Allow saving if at least one item is placed and reviewers are selected
 
     return (
         <div className="space-y-6">
@@ -351,32 +420,32 @@ const UploadAndSignPdf: React.FC = () => {
                 {isUploading && <div style={{ marginTop: 15 }}><Typography.Text>Uploading {uploadingFileName || 'files'}...</Typography.Text><Progress percent={uploadProgress} status="active" /></div>}
             </Card>
 
-            <Card title="2. Select File and Add Signature/Stamp" actions={[<Button key="refresh" type="text" onClick={fetchUnallocatedFiles} icon={<SyncOutlined />} title="Refresh File List" />]}>
+            <Card title="2. Select File and Add Signature/Stamp/QR" actions={[<Button key="refresh" type="text" onClick={fetchUnallocatedFiles} icon={<SyncOutlined />} title="Refresh File List" />]}>
                 <div className="mb-4 space-x-4">
-                    <Button type="primary" onClick={handleOpenSignModal} disabled={selectedFileIds.length !== 1 || loadingFiles}>Sign & Stamp Selected File</Button>
+                    <Button type="primary" onClick={handleOpenSignModal} disabled={selectedFileIds.length !== 1 || loadingFiles}>Sign, Stamp & Add QR to Selected File</Button>
                     <Typography.Text type="secondary">{selectedFileIds.length === 0 ? 'Select one file' : selectedFileIds.length === 1 ? '1 file selected' : `${selectedFileIds.length} selected`}</Typography.Text>
                 </div>
                 <Table rowKey="id" dataSource={unallocatedFiles} columns={fileColumns} loading={loadingFiles} rowSelection={rowSelection} pagination={{ pageSize: 10, size: 'small', showSizeChanger: false }} scroll={{ y: 350 }} size="middle" />
             </Card>
 
             <Modal
-                title={<Typography.Text ellipsis={{ tooltip: processingFile?.name }}>Sign & Stamp: {processingFile?.name || 'File'}</Typography.Text>}
+                title={<Typography.Text ellipsis={{ tooltip: processingFile?.name }}>Prepare Document: {processingFile?.name || 'File'}</Typography.Text>}
                 open={signModalVisible}
                 onCancel={handleCloseSignModal}
-                width={1000}
+                width={1000} // Consider making it wider if needed for 3 columns, or adjust layout
                 destroyOnClose
                 footer={[
                     <Button key="back" onClick={handleCloseSignModal} disabled={isSavingLetter}>Cancel</Button>,
-                    <Button key="submit" type="primary" loading={isSavingLetter} onClick={handleSaveSignedLetter} disabled={!canSaveChanges}>Save Signed Letter</Button>
+                    <Button key="submit" type="primary" loading={isSavingLetter} onClick={handleSaveSignedLetter} disabled={!canSaveChanges}>Save & Submit for Review</Button>
                 ]}
             >
                 <div className="flex flex-col md:flex-row gap-4 p-1 max-h-[75vh] overflow-hidden">
+                    {/* PDF Viewing Area (Left Panel) */}
                     <div className="flex-1 flex flex-col border border-gray-300 rounded-md overflow-hidden bg-gray-100">
                         <div className="flex justify-between items-center p-2 bg-gray-200 border-b border-gray-300 sticky top-0 z-10">
                             <div>
                                 {numPages && numPages > 1 && <Space><Button onClick={() => setPageNumber(p => Math.max(p - 1, 1))} disabled={pageNumber <= 1} size="small">Previous</Button><span>Page {pageNumber} of {numPages}</span><Button onClick={() => setPageNumber(p => Math.min(p + 1, numPages))} disabled={pageNumber >= numPages} size="small">Next</Button></Space>}
-                                {!numPages && pdfLoadError && <span className="text-red-500 text-xs">Page info unavailable</span>}
-                                {!numPages && !pdfLoadError && processingFile?.url && <span className="text-gray-500 text-xs">Loading page info...</span>}
+                                {/* ... other page info ... */}
                             </div>
                             <Space>
                                 <Button icon={<ZoomOutOutlined />} onClick={handleZoomOut} disabled={pdfScale <= MIN_SCALE || !numPages} size="small" />
@@ -390,44 +459,101 @@ const UploadAndSignPdf: React.FC = () => {
                             {processingFile?.url ? (
                                 <>
                                     {pdfLoadError && <Alert message="Error loading PDF" description={pdfLoadError} type="error" showIcon className="m-4" />}
-                                    <Document file={processingFile.url} onLoadSuccess={({ numPages: total }) => { setNumPages(total); setPdfLoadError(null) }} onLoadError={e => { console.error(e); setPdfLoadError(e.message); setNumPages(null) }}>
+                                    <Document file={processingFile.url} onLoadSuccess={({ numPages: total }) => { setNumPages(total); setPdfLoadError(null); setPageNumber(1); }} onLoadError={e => { console.error(e); setPdfLoadError(e.message); setNumPages(null); }}>
                                         <Page
                                             key={`page_${pageNumber}_${pdfScale}`}
                                             pageNumber={pageNumber}
                                             scale={pdfScale}
                                             onLoadSuccess={pdfPage => {
-                                                const viewport = pdfPage.getViewport({ scale: 1 })
-                                                setPageDimensions(prev => ({ ...prev, [pageNumber]: { width: viewport.width, height: viewport.height } }))
+                                                const viewport = pdfPage.getViewport({ scale: 1 });
+                                                setPageDimensions(prev => ({ ...prev, [pageNumber]: { width: viewport.width, height: viewport.height } }));
                                             }}
                                             renderTextLayer
                                             renderAnnotationLayer
-                                            className="shadow-lg"
-                                            loading={<div style={{ height: 500 }}><Spin /></div>}
-                                            error={<div className="text-red-500">Failed to render page</div>}
+                                            className="shadow-lg mx-auto" // Added mx-auto for centering if container is wider
+                                            loading={<div className="flex justify-center items-center h-[500px]"><Spin size="large" /></div>}
+                                            error={<div className="text-red-500 p-4">Failed to render page.</div>}
                                         />
+                                        {/* Render Placed Items */}
                                         {placedItems.filter(i => i.pageNumber === pageNumber).map(item => {
-                                            const dims = pageDimensions[item.pageNumber]
-                                            if (!dims) return null
-                                            const left = item.xPct * dims.width * pdfScale
-                                            const top = item.yPct * dims.height * pdfScale
-                                            const width = item.widthPct * dims.width * pdfScale
-                                            const height = item.heightPct * dims.height * pdfScale
-                                            return (
-                                                <Tooltip key={item.id} title="Click to remove">
-                                                    <img src={item.url} alt={item.type} style={{ position: 'absolute', left, top, width, height, cursor: 'pointer', border: '1px dashed rgba(128,128,128,0.7)', objectFit: 'contain', userSelect: 'none', transformOrigin: 'top left' }} onClick={e => { e.stopPropagation(); handleRemovePlacedItem(item.id) }} />
-                                                </Tooltip>
-                                            )
+                                            const dims = pageDimensions[item.pageNumber];
+                                            if (!dims) return null;
+
+                                            const itemRenderedWidth = item.widthPct * dims.width * pdfScale;
+                                            const itemRenderedHeight = item.heightPct * dims.height * pdfScale;
+                                            
+                                            // Calculate position based on page's rendered dimensions and centering
+                                            const renderedPageW = dims.width * pdfScale;
+                                            // const renderedPageH = dims.height * pdfScale; // Not directly used for item.left/top from Pct
+                                            const pageWrapper = document.querySelector('.react-pdf__Page__canvas')?.parentElement; // Get the page wrapper
+                                            const pageOffsetXinWrapper = pageWrapper ? (pageWrapper.clientWidth - renderedPageW) / 2 : 0;
+
+                                            const left = item.xPct * renderedPageW + pageOffsetXinWrapper;
+                                            const top = item.yPct * (dims.height * pdfScale);
+
+
+                                            if (item.type === 'qrcode') {
+                                                return (
+                                                    <Tooltip key={item.id} title="QR Code Placeholder. Click to remove.">
+                                                        <div
+                                                            style={{
+                                                                position: 'absolute',
+                                                                left: `${left}px`,
+                                                                top: `${top}px`,
+                                                                width: `${itemRenderedWidth}px`,
+                                                                height: `${itemRenderedHeight}px`,
+                                                                border: `2px dashed ${QR_PLACEHOLDER_COLOR}`,
+                                                                backgroundColor: 'rgba(0, 150, 50, 0.1)',
+                                                                cursor: 'pointer',
+                                                                userSelect: 'none',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                fontSize: Math.min(itemRenderedWidth, itemRenderedHeight) * 0.4, // Adjusted for visibility
+                                                                color: QR_PLACEHOLDER_COLOR,
+                                                                fontWeight: 'bold',
+                                                                boxSizing: 'border-box',
+                                                            }}
+                                                            onClick={e => { e.stopPropagation(); handleRemovePlacedItem(item.id); }}
+                                                        >
+                                                            {QR_PLACEHOLDER_TEXT}
+                                                        </div>
+                                                    </Tooltip>
+                                                );
+                                            } else { // Signature or Stamp
+                                                return (
+                                                    <Tooltip key={item.id} title="Click to remove">
+                                                        <img
+                                                            src={item.url}
+                                                            alt={item.type}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                left: `${left}px`,
+                                                                top: `${top}px`,
+                                                                width: `${itemRenderedWidth}px`,
+                                                                height: `${itemRenderedHeight}px`,
+                                                                cursor: 'pointer',
+                                                                border: '1px dashed rgba(128,128,128,0.7)',
+                                                                objectFit: 'contain',
+                                                                userSelect: 'none',
+                                                            }}
+                                                            onClick={e => { e.stopPropagation(); handleRemovePlacedItem(item.id); }}
+                                                        />
+                                                    </Tooltip>
+                                                );
+                                            }
                                         })}
                                     </Document>
                                 </>
-                            ) : <div className="text-center p-10"><Typography.Text type="secondary">No PDF selected</Typography.Text></div>}
+                            ) : <div className="text-center p-10"><Typography.Text type="secondary">No PDF selected or URL missing.</Typography.Text></div>}
                         </div>
                     </div>
 
-                    <div className="w-full md:w-1/3 space-y-4 p-2 overflow-y-auto">
-                        {placingItem && <Alert message={`Click on the PDF to place the selected ${placingItem.type}`} type="info" showIcon closable onClose={() => setPlacingItem(null)} />}
-                        {!placingItem && placedItems.length > 0 && <Alert message="Click on an item to remove it" type="info" showIcon />}
-
+                    {/* Controls and Reviewers (Right Panel) */}
+                    <div className="w-full md:w-1/3 space-y-3 p-2 overflow-y-auto">
+                        {placingItem && <Alert message={`Click on the PDF (page ${pageNumber}) to place the selected ${placingItem.type}.`} type="info" showIcon closable onClose={() => { setPlacingItem(null); setIsPlacingQr(false);}} />}
+                        {!placingItem && placedItems.length > 0 && <Alert message="Click on a placed item on the PDF to remove it." type="info" showIcon />}
+                        
                         <div>
                             <Typography.Title level={5} style={{ marginBottom: 8 }}>Select Signature</Typography.Title>
                             {savedSignatures.length === 0 ? <Typography.Text type="secondary">No signatures saved...</Typography.Text> : <div className="flex flex-wrap gap-2">{savedSignatures.map(sig => <button key={sig.id} type="button" onClick={() => handleSelectSignatureForPlacing(sig)} className={`p-1 border rounded-md transition-all ${selectedSignatureUrl === sig.r2Url ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-300 hover:border-gray-400'}`} title={sig.name || 'Signature'}><AntImage src={sig.r2Url} alt={sig.name || 'Signature'} width={80} height={35} preview={false} className="object-contain" /></button>)}</div>}
@@ -438,15 +564,30 @@ const UploadAndSignPdf: React.FC = () => {
                             {savedStamps.length === 0 ? <Typography.Text type="secondary">No stamps saved...</Typography.Text> : <div className="flex flex-wrap gap-2">{savedStamps.map(stamp => <button key={stamp.id} type="button" onClick={() => handleSelectStampForPlacing(stamp)} className={`p-1 border rounded-full transition-all ${selectedStampUrl === stamp.r2Url ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-300 hover:border-gray-400'}`} title={stamp.name || 'Stamp'}><AntImage src={stamp.r2Url} alt={stamp.name || 'Stamp'} width={45} height={45} preview={false} className="object-contain rounded-full" /></button>)}</div>}
                         </div>
 
+                        {/* ADDED: QR Code Placeholder Selection Button */}
+                        <div>
+                            <Typography.Title level={5} style={{ marginBottom: 8 }}>Add QR Code Placeholder</Typography.Title>
+                            <Button
+                                icon={<QrcodeOutlined />}
+                                onClick={handleSelectQrCodeForPlacing}
+                                type={isPlacingQr ? 'primary' : 'default'} // Visually indicate if QR placing mode is active
+                                className={isPlacingQr ? 'ring-2 ring-blue-300' : ''}
+                            >
+                                Add QR Placeholder ({`${DEFAULT_QR_PLACEHOLDER_PDF_UNITS}x${DEFAULT_QR_PLACEHOLDER_PDF_UNITS}`} units)
+                            </Button>
+                        </div>
+
+
                         {placedItems.length > 0 && (
                             <div>
                                 <Typography.Title level={5} style={{ marginBottom: 8 }}>Placed Items</Typography.Title>
                                 <List size="small" bordered dataSource={placedItems} renderItem={item => <List.Item actions={[<Button type="link" danger size="small" onClick={() => handleRemovePlacedItem(item.id)}>Remove</Button>]}><List.Item.Meta title={`${item.type.charAt(0).toUpperCase() + item.type.slice(1)} on page ${item.pageNumber}`} /></List.Item>} />
                             </div>
                         )}
-
+                        
+                        {/* Reviewer and Approver sections */}
                         <div>
-                            <Typography.Title level={5} style={{ marginBottom: 8 }}>Add Reviewer / Approver</Typography.Title>
+                            <Typography.Title level={5} style={{ marginBottom: 8 }}>Add Reviewers (in order)</Typography.Title>
                             <Space.Compact style={{ width: '100%' }}>
                                 <Select style={{ width: '100%' }} placeholder="Find reviewer..." showSearch allowClear value={reviewerToAdd} onChange={setReviewerToAdd} options={availableReviewerOptions} loading={loadingReviewers} filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} disabled={selectedReviewers.length >= MAX_REVIEWERS} />
                                 <Button type="primary" icon={<PlusOutlined />} onClick={handleAddReviewer} disabled={!reviewerToAdd || selectedReviewers.length >= MAX_REVIEWERS} />
@@ -456,8 +597,8 @@ const UploadAndSignPdf: React.FC = () => {
                         </div>
 
                         <div>
-                            <Typography.Title level={5} style={{ marginBottom: 8 }}>Add Final Approver</Typography.Title>
-                            <Select style={{ width: '100%' }} placeholder="Select Approver" value={selectedApprover} onChange={handleApproverChange} options={approverOptions} allowClear showSearch filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} />
+                            <Typography.Title level={5} style={{ marginBottom: 8 }}>Add Final Approver (Optional)</Typography.Title>
+                            <Select style={{ width: '100%' }} placeholder="Select Approver (optional)" value={selectedApprover} onChange={handleApproverChange} options={approverOptions} allowClear showSearch filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())} />
                         </div>
                     </div>
                 </div>
@@ -466,4 +607,4 @@ const UploadAndSignPdf: React.FC = () => {
     )
 }
 
-export default UploadAndSignPdf
+export default UploadAndSignPdf;

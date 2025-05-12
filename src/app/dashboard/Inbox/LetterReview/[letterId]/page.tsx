@@ -1,16 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Spin, Alert, Button, Typography, Row, Col, message, Tag, Modal, Input, Select, List, Avatar, Space, Tooltip, Image as AntImage, Card } from 'antd'; // Added AntImage, Card
+import { Spin, Alert, Button, Typography, Row, Col, message, Tag, Modal, Input, Select, List, Avatar, Space, Tooltip, Image as AntImage, Card } from 'antd';
 import {
     ArrowLeftOutlined, CheckOutlined, CloseOutlined, SendOutlined, HistoryOutlined,
-    SyncOutlined, // Removed PDF specific icons: ZoomInOutlined, ZoomOutOutlined, UndoOutlined, InboxOutlined, DeleteOutlined
+    SyncOutlined, QrcodeOutlined,
 } from '@ant-design/icons';
-import { getCurrentUser } from '@/utils/api'; // Assuming this exists and works
+import { getCurrentUser } from '@/utils/api';
 import axios from 'axios';
+import CkeditorOzel from '../../../CreateLetter/ckeditor_letter';
+import { v4 as uuidv4 } from 'uuid';
 
-// --- Helper: API Request Function (Copied from LetterPdfReviewPage) ---
 async function apiRequest<T = any>(endpoint: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', body?: any): Promise<T> {
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
     const config: RequestInit = { method, headers, credentials: 'include' };
@@ -25,263 +26,234 @@ async function apiRequest<T = any>(endpoint: string, method: 'GET' | 'POST' | 'P
     try { return await response.json() as T; } catch (e) { return undefined as T; }
 }
 
-// --- Types (Combined and Adapted from both files) ---
-
-// References for data lookups
 interface Reference { id: string; name: string; type: string; }
 interface DynamicDbData { companies: Array<{ id: string; name: string }>; vendors: Array<{ id: string; name: string }>; contracts: Array<{ id: string; name: string }>; customs: Array<{ id: string; name: string }>; documentTypes: Array<{ id: string; name: string }>; subContractorNames: Array<{ id: string; name: string }>; }
-
-// Template structure
-interface TemplateSectionData { id: string; title: string; content: string; }
-interface SavedTemplate { id: string; name?: string | null; sections: TemplateSectionData[]; userId: string; createdAt: string; updatedAt: string; }
-
-// Form Data structure (from original LetterReviewPage)
-interface FormData {
-    company: string; date: string; customs: string; person: string;
-    vendor: string; contract: string; value: string; mode: string;
-    reference: string;
-    invoiceNumber: string; cargoName: string; cargoDescription: string;
-    documentType: string; importPurpose: string; requestPerson: string;
-    requestDepartment: string; declarationNumber: string; quantityBillNumber: string;
-    subContractorName: string; subContractNumber: string;
-    logoUrl: string | null;
-    signatureUrl: string | null;
-    stampUrl: string | null;
+interface SavedTemplate {
+    id: string;
+    name?: string | null;
+    content: string;
+    userId: string;
+    createdAt: string;
+    updatedAt: string;
 }
-
-// Workflow & User Info (from LetterPdfReviewPage)
+interface FormData {
+    [key: string]: string;
+}
 enum LetterWorkflowStatus { DRAFT = 'draft', PENDING_REVIEW = 'pending_review', PENDING_APPROVAL = 'pending_approval', APPROVED = 'approved', REJECTED = 'rejected' }
 enum LetterReviewerStatus { PENDING = 'pending', APPROVED = 'approved', REJECTED = 'rejected', SKIPPED = 'skipped', REASSIGNED = 'reassigned' }
-enum LetterActionType { SUBMIT = 'submit', APPROVE_REVIEW = 'approve_review', REJECT_REVIEW = 'reject_review', REASSIGN_REVIEW = 'reassign_review', FINAL_APPROVE = 'final_approve', FINAL_REJECT = 'final_reject', RESUBMIT = 'resubmit', COMMENT = 'comment', UPLOAD_REVISION = 'upload_revision' } // UPLOAD_REVISION might be less relevant now
+enum LetterActionType { SUBMIT = 'submit', APPROVE_REVIEW = 'approve_review', REJECT_REVIEW = 'reject_review', REASSIGN_REVIEW = 'reassign_review', FINAL_APPROVE = 'final_approve', FINAL_REJECT = 'final_reject', RESUBMIT = 'resubmit', COMMENT = 'comment', UPLOAD_REVISION = 'upload_revision' }
 interface UserInfo { id: string; firstName?: string | null; lastName?: string | null; email: string; avatar?: string | null; }
 interface ActionLog { id: string; userId: string; actionType: string; comment?: string | null; details?: any; createdAt: string; user?: UserInfo | null; }
 interface ReviewerStep { id: string; userId: string; sequenceOrder: number; status: string; actedAt?: string | null; reassignedFromUserId?: string | null; user?: UserInfo | null; }
-
-// Main Letter Details Structure (Extended to include template/form data)
 interface LetterDetails {
     id: string;
     name?: string | null;
     userId: string;
     workflowStatus: string;
     nextActionById?: string | null;
-    // Removed PDF specific fields: signedPdfUrl, originalPdfFileId
     createdAt: string;
     updatedAt: string;
     user?: UserInfo | null;
     letterReviewers?: ReviewerStep[] | null;
     letterActionLogs?: ActionLog[] | null;
-
-    // Added from original LetterReviewPage structure (adjust API response accordingly)
     template: SavedTemplate | null;
-    formData: Partial<FormData>; // Use Partial as not all fields might be present initially
-    logoUrl: string | null;
-    signatureUrl: string | null;
-    stampUrl: string | null;
+    formData: Partial<FormData>;
+    finalSignatureUrl?: string | null;
+    finalStampUrl?: string | null;
+}
+interface CurrentUserType { id: string; email: string; firstName?: string | null; lastName?: string | null; avatar?: string | null; }
+interface SignatureData { id: string; r2Url: string; name?: string; createdAt: string; }
+interface StampData { id: string; r2Url: string; name?: string; createdAt: string; }
+
+// New interfaces for placing items
+interface PlacedItemHtml {
+    id: string;
+    type: 'signature' | 'stamp' | 'qrcode';
+    url?: string;
+    xPct: number;
+    yPct: number;
+    widthPct: number;
+    heightPct: number;
 }
 
-interface CurrentUserType { id: string; email: string; firstName?: string | null; lastName?: string | null; avatar?: string | null; }
-
+interface PlacingItemInfo {
+    type: 'signature' | 'stamp' | 'qrcode';
+    url?: string;
+    width: number;
+    height: number;
+}
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 const { Option } = Select;
 
+const QR_PLACEHOLDER_COLOR = 'rgba(0, 150, 50, 0.7)';
 
-// --- Helper: Map Placeholder to FormData Key (from original LetterReviewPage) ---
-const getFormFieldKeyFromPlaceholder = (placeholderId: string): keyof Omit<FormData, 'logoUrl' | 'signatureUrl' | 'stampUrl'> | null => {
-    const mapping: { [key: string]: keyof Omit<FormData, 'logoUrl' | 'signatureUrl' | 'stampUrl'> } = {
-        'company-1': 'company', 'date-1': 'date', 'customs-1': 'customs',
-        'vendor-1': 'vendor', 'contract-1': 'contract', 'amount-1': 'value',
-        'invoice-number': 'invoiceNumber', 'cargo-name': 'cargoName',
-        'cargo-description': 'cargoDescription', 'document-type': 'documentType',
-        'import-purpose': 'importPurpose', 'request-person': 'requestPerson',
-        'request-department': 'requestDepartment', 'person': 'person',
-        'subcontractor-name': 'subContractorName', 'subcontract-number': 'subContractNumber',
-        // Add any other mappings needed by your templates
-    };
-    return mapping[placeholderId] as keyof Omit<FormData, 'logoUrl' | 'signatureUrl' | 'stampUrl'> | null || null;
-};
-
-
-// --- Component: Letter Preview Panel (Adapted from original LetterReviewPage) ---
 function LetterPreviewPanelReview({
     template,
     formData,
     dbData,
+    signatureUrl,
+    stampUrl,
+    onLetterClick,
+    placedItems,
+    onRemoveItem,
 }: {
     template: SavedTemplate | null;
-    formData: FormData; // Use the full FormData here
+    formData: FormData;
     dbData: DynamicDbData;
+    signatureUrl?: string | null;
+    stampUrl?: string | null;
+    onLetterClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+    placedItems: PlacedItemHtml[];
+    onRemoveItem?: (id: string) => void;
 }) {
-    const renderContentWithPlaceholders = useCallback((text: string): React.ReactNode => {
+    const [processedContent, setProcessedContent] = useState<string>('');
+    const wrapperRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (template?.content) {
+            const renderedContent = renderContentWithPlaceholders(template.content);
+            setProcessedContent(renderedContent);
+        }
+    }, [template, formData]);
+
+    const renderContentWithPlaceholders = (text: string): string => {
         if (!text) return '';
-        // Regex to find placeholders like $field-id$
-        const parts = text.split(/(\$[a-zA-Z0-9-]+\$)/g);
-        return parts.map((part, index) => {
-            if (part.match(/^\$[a-zA-Z0-9-]+\$$/)) {
-                const fieldId = part.slice(1, -1); // Extract field-id
-                const formFieldKey = getFormFieldKeyFromPlaceholder(fieldId);
-
-                if (formFieldKey) {
-                    const formValue = formData[formFieldKey]; // Get value from formData
-                    let displayValue: string | number | readonly string[] | undefined = formValue;
-
-                    // Map IDs to Names for dropdown fields using dbData
-                    const dropdownKeys: (keyof Omit<FormData, 'logoUrl' | 'signatureUrl' | 'stampUrl'>)[] = ['company', 'customs', 'vendor', 'contract', 'documentType', 'subContractorName'];
-                    if (dropdownKeys.includes(formFieldKey) && formValue && dbData) {
-                        const sourceKey = (formFieldKey === 'documentType' ? 'documentTypes' : formFieldKey === 'subContractorName' ? 'subContractorNames' : `${formFieldKey}s`) as keyof DynamicDbData;
-                        const sourceDataArray = dbData[sourceKey] as Array<{ id: string; name: string }> | undefined;
-                        const selectedItem = sourceDataArray?.find(item => item.id === formValue);
-                        displayValue = selectedItem ? selectedItem.name : `[ID: ${formValue} not found]`; // Indicate if ID not found
-                    }
-
-                    // Format date nicely
-                    if (formFieldKey === 'date' && displayValue) {
-                        try {
-                            // Ensure date string is treated as UTC to avoid timezone issues if it's just YYYY-MM-DD
-                            displayValue = new Date(displayValue + 'T00:00:00Z').toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
-                        } catch (e) { console.error("Date formatting error:", e); /* keep original value */ }
-                    }
-
-                    // Render the value in a highlighted span
-                    return (
-                        <span key={index} className="bg-yellow-100 text-yellow-900 px-1 py-0.5 rounded font-medium text-xs mx-0.5 align-baseline">
-                            {displayValue || `[${formFieldKey} is empty]`}
-                        </span>
-                    );
-                } else {
-                     // Handle special placeholders like signature/stamp if needed differently,
-                     // or show an error for unrecognized placeholders.
-                     if (fieldId === 'signature' || fieldId === 'stamp') {
-                        // These are often handled structurally, not via simple text replacement. Return null or specific component.
-                        return null;
-                    }
-                    return <span key={index} className="text-red-500 font-bold text-xs mx-0.5" title={`Unknown placeholder: ${part}`}>[{fieldId}??]</span>;
-                }
-            }
-            // Handle line breaks within the text part
-            const lines = part.split('\n');
-            return lines.map((line, lineIndex) => (
-                <React.Fragment key={`${index}-${lineIndex}`}>{line}{lineIndex < lines.length - 1 && <br />}</React.Fragment>
-            ));
+        return text.replace(/#([a-zA-Z0-9-]+)#/g, (match, p1) => {
+            return formData[p1] || `[${p1} boşdur]`;
         });
-    }, [formData, dbData]); // Dependencies for the callback
+    };
+
+    const handleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (onLetterClick) onLetterClick(event);
+    };
 
     if (!template) {
         return <div className="flex items-center justify-center h-full text-gray-500">Template data is missing. Cannot render preview.</div>;
     }
 
-    // Helper to render a specific template section by its ID
-    const renderSection = (sectionId: string, className: string = '') => {
-        const section = template.sections.find(s => s.id === sectionId);
-        if (!section) return null; // Don't render if section not found
-        const contentNode = renderContentWithPlaceholders(section.content);
-        // Use whitespace-pre-line to respect line breaks and wrap text
-        return <div className={`${className} whitespace-pre-line leading-relaxed`}>{contentNode}</div>;
-    };
-
-    // Structure the letter layout using renderSection - This layout is based on the original LetterReviewPage
     return (
         <div className="space-y-4">
-            {/* Removed the "Letter Preview" title and save button */}
-            <div className="relative bg-white p-8 pr-12 pl-12 rounded-lg shadow border border-gray-200 min-h-[800px] text-sm font-serif leading-relaxed">
-
-                {/* Header Section */}
-                <div className="flex justify-between items-start mb-8">
-                    <div className="w-24 h-16 flex items-center justify-center bg-gray-100 rounded border flex-shrink-0 overflow-hidden">
-                        {formData.logoUrl ? (
-                            <AntImage src={formData.logoUrl} alt="Logo Preview" className="max-h-full max-w-full object-contain" preview={false}/>
-                        ) : (
-                            <span className="text-gray-400 text-xs">Logo</span>
-                        )}
-                    </div>
-                    <div className="text-right space-y-1 ml-4">
-                        {renderSection('header')}
-                        {renderSection('date-value')} {/* Assumes a section named 'date-value' exists */}
-                    </div>
-                </div>
-
-                {/* Address & Recipient */}
-                {renderSection('address', 'mb-6 space-y-1')}
-                {renderSection('doc-type-value', 'mb-6')} {/* Assumes 'doc-type-value' section */}
-                <div className="mb-6 space-y-1">
-                    {/* Example of combining label/value if they are separate sections */}
-                    {template.sections.find(s => s.id === 'recipient-label' || s.id === 'recipient-value') && (
-                        <div className="flex items-baseline">
-                           <span className="w-20 font-medium flex-shrink-0">{renderSection('recipient-label', 'inline-block')}</span>
-                           {renderSection('recipient-value')}
-                        </div>
-                    )}
-                     {/* Or render a single 'recipient' section if it contains everything */}
-                    {renderSection('recipient')}
-                </div>
-
-                {/* Main Content */}
-                {renderSection('introduction', 'mb-6')}
-
-                {/* Detailed Info Section (Example Structure) */}
-                <div className="space-y-2 mb-8 border-t border-b border-gray-200 py-4">
-                     {template.sections.find(s => s.id === 'invoice-number-label' || s.id === 'invoice-number-value') && ( <div className="flex justify-between items-baseline">{renderSection('invoice-number-label', 'inline-block font-semibold')}{renderSection('invoice-number-value', 'text-right')}</div> )}
-                     {template.sections.find(s => s.id === 'cargo-name-label' || s.id === 'cargo-name-value') && ( <div className="flex justify-between items-baseline">{renderSection('cargo-name-label', 'inline-block font-semibold')}{renderSection('cargo-name-value', 'text-right')}</div> )}
-                     {template.sections.find(s => s.id === 'cargo-description-label' || s.id === 'cargo-description-value') && ( <div className="flex justify-between items-baseline">{renderSection('cargo-description-label', 'inline-block font-semibold mr-2')}{renderSection('cargo-description-value', 'flex-grow text-right')}</div> )}
-                     {template.sections.find(s => s.id === 'subcontractor-label' || s.id === 'subcontractor-value') && ( <div className="flex justify-between items-baseline">{renderSection('subcontractor-label', 'inline-block font-semibold')}{renderSection('subcontractor-value', 'text-right')}</div> )}
-                     {template.sections.find(s => s.id === 'subcontract-num-label' || s.id === 'subcontract-num-value') && ( <div className="flex justify-between items-baseline">{renderSection('subcontract-num-label', 'inline-block font-semibold')}{renderSection('subcontract-num-value', 'text-right')}</div> )}
-                     {template.sections.find(s => s.id === 'customs-value-label' || s.id === 'amount-value') && ( <div className="flex justify-between items-baseline">{renderSection('customs-value-label', 'inline-block font-semibold mr-2')}{renderSection('amount-value', 'text-right')}</div> )}
-                </div>
-
-                {/* Footer & Signature/Stamp Area */}
-                <div className="mt-12 mb-32">
-                    {renderSection('footer')}
-                </div>
-
-                {/* Absolute positioned Signature/Stamp Area */}
-                <div className="absolute bottom-8 left-12 right-12 flex justify-between items-end h-24">
-                    <div className="w-1/2 text-left flex flex-col justify-end">
-                         {/* Render signature placeholder text if needed */}
-                        <div className="mb-1">
-                            {renderSection('signature')}
-                        </div>
-                        {/* Display the actual signature image */}
-                        {formData.signatureUrl && (
-                            <div className="h-16">
-                                <AntImage
-                                    src={formData.signatureUrl}
-                                    alt="Signature Preview"
-                                    className="max-h-full max-w-[200px] object-contain"
-                                    preview={false} // Disable Ant Design's preview on click
+            <div className="relative bg-white rounded-lg shadow border border-gray-200 min-h-[800px] text-sm font-serif leading-relaxed">
+                <div ref={wrapperRef} className="ck-editor-wrapper" onClick={handleClick}>
+                    <CkeditorOzel
+                        onChange={() => {}}
+                        initialData={processedContent}
+                        customFields={[]}
+                        readOnly={true}
+                    />
+                    {placedItems.map(item => {
+                        const style: React.CSSProperties = {
+                            position: 'absolute',
+                            left: `${item.xPct * 100}%`,
+                            top: `${item.yPct * 100}%`,
+                            width: `${item.widthPct * 100}%`,
+                            height: `${item.heightPct * 100}%`,
+                            cursor: 'pointer',
+                        };
+                        if (item.type === 'qrcode') {
+                            return (
+                                <div
+                                    key={item.id}
+                                    style={style}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onRemoveItem) onRemoveItem(item.id);
+                                    }}
+                                >
+                                    <div style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        backgroundColor: QR_PLACEHOLDER_COLOR,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'white',
+                                        fontWeight: 'bold',
+                                        border: '2px dashed white',
+                                    }}>
+                                        QR
+                                    </div>
+                                </div>
+                            );
+                        } else {
+                            return (
+                                <img
+                                    key={item.id}
+                                    src={item.url}
+                                    alt={item.type}
+                                    style={style}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onRemoveItem) onRemoveItem(item.id);
+                                    }}
                                 />
+                            );
+                        }
+                    })}
+                </div>
+                {!placedItems.length && (
+                    <div className="absolute bottom-8 left-12 right-12 flex justify-between items-end h-24">
+                        {signatureUrl && (
+                            <div className="flex flex-col items-center">
+                                <AntImage src={signatureUrl} alt="Signature" width={100} height={40} preview={false} className="object-contain" />
+                                <Text className="text-xs mt-1">Signature</Text>
+                            </div>
+                        )}
+                        {stampUrl && (
+                            <div className="flex flex-col items-center">
+                                <AntImage src={stampUrl} alt="Stamp" width={60} height={60} preview={false} className="object-contain" />
+                                <Text className="text-xs mt-1">Stamp</Text>
                             </div>
                         )}
                     </div>
-
-                    <div className="w-1/2 flex justify-end items-center">
-                         {/* Display the actual stamp image */}
-                        {formData.stampUrl && (
-                            <div className="w-24 h-24 flex items-center justify-center">
-                                <AntImage
-                                    src={formData.stampUrl}
-                                    alt="Stamp Preview"
-                                    className="max-h-full max-w-full object-contain opacity-85"
-                                    preview={false} // Disable Ant Design's preview on click
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-            </div> {/* End of letter preview container */}
+                )}
+            </div>
+            <style jsx>{`
+                .ck-editor-wrapper {
+                    padding: 2rem 3rem;
+                    max-height: 800px;
+                    overflow-y: auto;
+                    position: relative;
+                }
+                .ck-editor-wrapper :global(.ck-content) {
+                    min-height: 600px;
+                    background-color: #fff;
+                    border: none;
+                    padding: 0;
+                    font-family: 'Times New Roman', Times, serif;
+                    font-size: 14px;
+                    line-height: 1.6;
+                    color: #333;
+                }
+                .ck-editor-wrapper :global(.ck-content p) {
+                    margin-bottom: 1em;
+                }
+                .ck-editor-wrapper :global(.ck-content img) {
+                    max-width: 100%;
+                    height: auto;
+                    display: block;
+                    margin: 10px 0;
+                }
+                .ck-editor-wrapper :global(.ck-content ul),
+                .ck-editor-wrapper :global(.ck-content ol) {
+                    margin: 1em 0;
+                    padding-left: 40px;
+                }
+                .ck-editor-wrapper :global(.ck-content li) {
+                    margin-bottom: 0.5em;
+                }
+            `}</style>
         </div>
     );
 }
 
-
-// --- Main Page Component ---
 export default function LetterHtmlReviewPage() {
     const router = useRouter();
     const params = useParams();
     const letterId = params?.letterId as string | undefined;
 
-    // State from LetterPdfReviewPage (User, Letter Details, Workflow)
     const [currentUser, setCurrentUser] = useState<CurrentUserType | null>(null);
     const [letterDetails, setLetterDetails] = useState<LetterDetails | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -291,19 +263,21 @@ export default function LetterHtmlReviewPage() {
     const [isReassignModalVisible, setIsReassignModalVisible] = useState(false);
     const [reassignTargetUserId, setReassignTargetUserId] = useState<string | null>(null);
     const [reassignOptions, setReassignOptions] = useState<UserInfo[]>([]);
-    const [actionComment, setActionComment] = useState(''); // For Reject/Reassign
-    const [resubmitComment, setResubmitComment] = useState(''); // For Resubmit
-
-    // State needed for HTML rendering (from original LetterReviewPage)
+    const [actionComment, setActionComment] = useState('');
+    const [resubmitComment, setResubmitComment] = useState('');
     const [allReferences, setAllReferences] = useState<Reference[]>([]);
+    const [savedSignatures, setSavedSignatures] = useState<SignatureData[]>([]);
+    const [savedStamps, setSavedStamps] = useState<StampData[]>([]);
+    const [selectedSignatureUrl, setSelectedSignatureUrl] = useState<string | null>(null);
+    const [selectedStampUrl, setSelectedStampUrl] = useState<string | null>(null);
+    const [placedItems, setPlacedItems] = useState<PlacedItemHtml[]>([]);
+    const [placingItem, setPlacingItem] = useState<PlacingItemInfo | null>(null);
 
-
-    // Fetch Current User
     useEffect(() => {
         const fetchUser = async () => {
             setIsUserLoading(true);
             try {
-                const user = await getCurrentUser(); // Assuming this function exists
+                const user = await getCurrentUser();
                 setCurrentUser(user);
             } catch (err) {
                 console.error("Failed to fetch current user:", err);
@@ -316,7 +290,6 @@ export default function LetterHtmlReviewPage() {
         fetchUser();
     }, []);
 
-    // Fetch Letter Details and References
     useEffect(() => {
         if (!letterId) {
             setError("Letter ID is missing from the URL.");
@@ -326,22 +299,11 @@ export default function LetterHtmlReviewPage() {
         const fetchData = async () => {
             setIsLoading(true);
             setError(null);
-            setLetterDetails(null); // Reset details on new ID
-            setAllReferences([]);   // Reset references
             try {
-                // Fetch letter details (ensure API returns template, formData, logoUrl, etc.)
                 const details = await apiRequest<LetterDetails>(`/letters/${letterId}`);
-                if (!details || !details.template || !details.formData) {
-                     // Check if template and formData exist in the response
-                     throw new Error('Letter data is incomplete. Template or form data might be missing.');
-                }
                 setLetterDetails(details);
-
-                // Fetch references (needed for dropdown value lookups)
-                // Adjust endpoint if necessary
-                const refs = await apiRequest<Reference[]>('/references'); // Example endpoint
+                const refs = await apiRequest<Reference[]>('/references');
                 setAllReferences(refs || []);
-
             } catch (err: any) {
                 console.error("Error fetching letter details or references:", err);
                 setError(err.message || "An error occurred while loading the letter.");
@@ -352,19 +314,37 @@ export default function LetterHtmlReviewPage() {
             }
         };
         fetchData();
-    }, [letterId]); // Rerun if letterId changes
+    }, [letterId]);
 
-    // Fetch users for reassignment modal (when opened)
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            try {
+                const sigsRaw = localStorage.getItem('signatures_r2');
+                const parsedSigs = sigsRaw ? JSON.parse(sigsRaw) : [];
+                if (Array.isArray(parsedSigs)) {
+                    setSavedSignatures(parsedSigs.map((s: any) => ({ id: s.id, r2Url: s.url || s.r2Url, name: s.name, createdAt: s.createdAt })));
+                } else { setSavedSignatures([]); }
+            } catch (e) { console.error("Failed to load/parse signatures", e); setSavedSignatures([]); }
+            try {
+                const stmpsRaw = localStorage.getItem('stamps_r2');
+                const parsedStamps = stmpsRaw ? JSON.parse(stmpsRaw) : [];
+                if (Array.isArray(parsedStamps)) {
+                    setSavedStamps(parsedStamps.map((s: any) => ({ id: s.id, r2Url: s.url || s.r2Url, name: s.name, createdAt: s.createdAt })));
+                } else { setSavedStamps([]); }
+            } catch (e) { console.error("Failed to load/parse stamps", e); setSavedStamps([]); }
+        }
+    }, []);
+
     useEffect(() => {
         if (isReassignModalVisible && letterDetails) {
             const fetchUsers = async () => {
                 try {
                     const allUsers = await apiRequest<UserInfo[]>('/users');
-                    // Filter out submitter, current reviewers, and current user
                     const currentWorkflowUserIds = new Set(letterDetails.letterReviewers?.map(r => r.userId) ?? []);
-                    currentWorkflowUserIds.add(letterDetails.userId); // Submitter
-                    if (currentUser) { currentWorkflowUserIds.add(currentUser.id); } // Current viewer
-
+                    currentWorkflowUserIds.add(letterDetails.userId);
+                    if (currentUser) {
+                        currentWorkflowUserIds.add(currentUser.id);
+                    }
                     const availableUsers = allUsers.filter(user => !currentWorkflowUserIds.has(user.id));
                     setReassignOptions(availableUsers);
                 } catch (err: any) {
@@ -376,51 +356,28 @@ export default function LetterHtmlReviewPage() {
         }
     }, [isReassignModalVisible, letterDetails, currentUser]);
 
-
-    // Prepare dbData for rendering (lookup tables from references)
     const dbData = useMemo<DynamicDbData>(() => {
         const data: DynamicDbData = { companies: [], vendors: [], contracts: [], customs: [], documentTypes: [], subContractorNames: [] };
         allReferences.forEach(ref => {
             const item = { id: ref.id, name: ref.name };
-            switch (ref.type) { // Assuming reference types match keys needed
+            switch (ref.type) {
                 case 'Company': data.companies.push(item); break;
                 case 'Vendor Name': data.vendors.push(item); break;
                 case 'Contract Number': data.contracts.push(item); break;
                 case 'Customs Department': data.customs.push(item); break;
                 case 'Document Type': data.documentTypes.push(item); break;
                 case 'Sub-Contractor Name': data.subContractorNames.push(item); break;
-                // Add other types if needed
             }
         });
         return data;
-    }, [allReferences]); // Recalculate when references change
+    }, [allReferences]);
 
-
-    // Prepare full FormData object for rendering (combining defaults, fetched data, urls)
     const fullFormDataForPreview = useMemo<FormData | null>(() => {
         if (!letterDetails || !letterDetails.formData) return null;
-
-        // Define default structure for FormData
-        const defaultFormData: FormData = {
-            company: '', date: '', customs: '', person: '', vendor: '', contract: '', value: '', mode: '',
-            reference: '', invoiceNumber: '', cargoName: '', cargoDescription: '', documentType: '',
-            importPurpose: '', requestPerson: '', requestDepartment: '', declarationNumber: '',
-            quantityBillNumber: '', subContractorName: '', subContractNumber: '',
-            logoUrl: null, signatureUrl: null, stampUrl: null
-        };
-
-        // Merge defaults with fetched data and image URLs
         return {
-            ...defaultFormData,
-            ...letterDetails.formData, // Spread the potentially partial data from API
-            logoUrl: letterDetails.logoUrl,
-            signatureUrl: letterDetails.signatureUrl,
-            stampUrl: letterDetails.stampUrl,
-        };
-    }, [letterDetails]); // Recalculate when letterDetails change
-
-
-    // --- Workflow Logic (Mostly from LetterPdfReviewPage) ---
+            ...letterDetails.formData,
+        } as FormData;
+    }, [letterDetails]);
 
     const isCurrentUserNextActor = useMemo(() => {
         return !!currentUser && !!letterDetails && letterDetails.nextActionById === currentUser.id;
@@ -438,22 +395,104 @@ export default function LetterHtmlReviewPage() {
             letterDetails.userId === currentUser.id;
     }, [currentUser, letterDetails]);
 
+    const isFinalApprovalSigningMode = canTakeAction && letterDetails?.workflowStatus === LetterWorkflowStatus.PENDING_APPROVAL;
 
-    // --- Action Handlers (Adapted from LetterPdfReviewPage, removed PDF/signing specifics) ---
+    const handleLetterAreaClick = (event: React.MouseEvent<HTMLDivElement>) => {
+        if (!placingItem || !isFinalApprovalSigningMode) return;
+        const wrapper = event.currentTarget;
+        const rect = wrapper.getBoundingClientRect();
+        const scrollTop = wrapper.scrollTop;
+        const clickX = event.clientX - rect.left;
+        const clickY = event.clientY - rect.top + scrollTop;
+        const containerWidth = wrapper.clientWidth;
+        const containerHeight = wrapper.scrollHeight;
+        const xPct = clickX / containerWidth;
+        const yPct = clickY / containerHeight;
+
+        let widthPx, heightPx;
+        if (placingItem.type === 'signature') {
+            widthPx = 100;
+            heightPx = 40;
+        } else if (placingItem.type === 'stamp') {
+            widthPx = 60;
+            heightPx = 60;
+        } else { // qrcode
+            widthPx = 50;
+            heightPx = 50;
+        }
+        const widthPct = widthPx / containerWidth;
+        const heightPct = heightPx / containerHeight;
+
+        const newItem: PlacedItemHtml = {
+            id: uuidv4(),
+            type: placingItem.type,
+            url: placingItem.type !== 'qrcode' ? placingItem.url : undefined,
+            xPct,
+            yPct,
+            widthPct,
+            heightPct,
+        };
+        setPlacedItems(prev => [...prev, newItem]);
+        setPlacingItem(null);
+    };
+
+    const handleRemoveItem = (id: string) => {
+        setPlacedItems(prev => prev.filter(item => item.id !== id));
+    };
+
+    const handlePlaceSignature = () => {
+        if (!selectedSignatureUrl) {
+            message.error("Please select a signature first.");
+            return;
+        }
+        setPlacingItem({ type: 'signature', url: selectedSignatureUrl, width: 100, height: 40 });
+    };
+
+    const handlePlaceStamp = () => {
+        if (!selectedStampUrl) {
+            message.error("Please select a stamp first.");
+            return;
+        }
+        setPlacingItem({ type: 'stamp', url: selectedStampUrl, width: 60, height: 60 });
+    };
+
+    const handlePlaceQrCode = () => {
+        setPlacingItem({ type: 'qrcode', width: 50, height: 50 });
+    };
 
     const handleApprove = async () => {
         if (!letterId || !currentUser?.id || !canTakeAction) return;
+        const isFinalApproval = letterDetails?.workflowStatus === LetterWorkflowStatus.PENDING_APPROVAL;
+        if (isFinalApproval && placedItems.length === 0) {
+            message.error("Please place at least one item (signature, stamp, or QR code) for final approval.");
+            return;
+        }
         setIsActionLoading(true);
         message.loading({ content: 'Processing approval...', key: 'action', duration: 0 });
         try {
-            const isFinalApproval = letterDetails?.workflowStatus === LetterWorkflowStatus.PENDING_APPROVAL;
             const endpoint = isFinalApproval ? `/letters/${letterId}/final-approve-letter` : `/letters/${letterId}/approve-review`;
-            // Approval might not need a comment, but include if API expects it
-            const payload = { comment: actionComment }; // Use actionComment if approval comments are desired/needed
+            const payload = isFinalApproval
+                ? {
+                    comment: actionComment,
+                    placements: placedItems.map(item => ({
+                        type: item.type,
+                        url: item.type === 'qrcode' ? 'QR_PLACEHOLDER' : item.url,
+                        xPct: item.xPct,
+                        yPct: item.yPct,
+                        widthPct: item.widthPct,
+                        heightPct: item.heightPct,
+                    })),
+                  }
+                : { comment: actionComment };
             await apiRequest(endpoint, 'POST', payload);
             message.success({ content: 'Action successful!', key: 'action', duration: 2 });
-            setActionComment(''); // Clear comment after use
-            router.push('/dashboard/Inbox'); // Or relevant target page
+            setActionComment('');
+            if (isFinalApproval) {
+                setSelectedSignatureUrl(null);
+                setSelectedStampUrl(null);
+                setPlacedItems([]);
+            }
+            router.push('/dashboard/Inbox');
         } catch (apiError: any) {
             message.error({ content: `Failed to process approval: ${apiError.message || 'Unknown error'}`, key: 'action', duration: 4 });
         } finally {
@@ -463,7 +502,7 @@ export default function LetterHtmlReviewPage() {
 
     const handleReject = async () => {
         if (!letterId || !currentUser?.id || !canTakeAction) return;
-        if (!actionComment.trim()) { // Reject reason is usually mandatory
+        if (!actionComment.trim()) {
             message.error("Rejection reason/comment cannot be empty.");
             return;
         }
@@ -472,10 +511,10 @@ export default function LetterHtmlReviewPage() {
         try {
             const isFinalApproval = letterDetails?.workflowStatus === LetterWorkflowStatus.PENDING_APPROVAL;
             const endpoint = isFinalApproval ? `/letters/${letterId}/final-reject` : `/letters/${letterId}/reject-review`;
-            const payload = { reason: actionComment }; // API likely expects 'reason'
+            const payload = { reason: actionComment };
             await apiRequest(endpoint, 'POST', payload);
             message.success({ content: 'Rejection successful!', key: 'action', duration: 2 });
-            setActionComment(''); // Clear comment
+            setActionComment('');
             router.push('/dashboard/Inbox');
         } catch (apiError: any) {
             message.error({ content: `Failed to process rejection: ${apiError.message || 'Unknown error'}`, key: 'action', duration: 4 });
@@ -496,12 +535,11 @@ export default function LetterHtmlReviewPage() {
         message.loading({ content: 'Processing reassignment...', key: 'action', duration: 0 });
         try {
             const endpoint = `/letters/${letterId}/reassign`;
-            // Include comment as 'reason' if provided
             const payload = { newUserId: reassignTargetUserId, reason: actionComment };
             await apiRequest(endpoint, 'POST', payload);
             message.success({ content: 'Reassignment successful!', key: 'action', duration: 2 });
             setReassignTargetUserId(null);
-            setActionComment(''); // Clear comment
+            setActionComment('');
             router.push('/dashboard/Inbox');
         } catch (apiError: any) {
             message.error({ content: `Failed to process reassignment: ${apiError.message || 'Unknown error'}`, key: 'action', duration: 4 });
@@ -512,30 +550,25 @@ export default function LetterHtmlReviewPage() {
 
     const handleResubmit = async () => {
         if (!letterId || !currentUser?.id || !isSubmitterOfRejectedLetter) return;
-        if (!resubmitComment.trim()) { // Resubmit comment is usually mandatory
+        if (!resubmitComment.trim()) {
             message.error("Resubmission comment cannot be empty.");
             return;
         }
-        // Removed all PDF signing and uploading logic
         setIsActionLoading(true);
         message.loading({ content: 'Resubmitting letter...', key: 'resubmit-action', duration: 0 });
         try {
             const endpoint = `/letters/${letterId}/resubmit`;
-            // Payload only includes the comment now
             const payload: { comment: string } = { comment: resubmitComment };
             await apiRequest(endpoint, 'POST', payload);
             message.success({ content: 'Letter resubmitted successfully!', key: 'resubmit-action', duration: 2 });
-            setResubmitComment(''); // Clear comment
-            // Reset any state related to potential file upload if it were added back
-            router.push('/dashboard/MyStaff'); // Or relevant page after resubmit
+            setResubmitComment('');
+            router.push('/dashboard/MyStaff');
         } catch (apiError: any) {
             message.error({ content: `Failed to resubmit letter: ${apiError.message || 'Unknown error'}`, key: 'resubmit-action', duration: 4 });
         } finally {
             setIsActionLoading(false);
         }
     };
-
-    // --- UI Rendering Helpers (Copied/Adapted from LetterPdfReviewPage) ---
 
     const renderActionButtons = () => {
         if (isUserLoading) return <Spin size="small" />;
@@ -544,11 +577,11 @@ export default function LetterHtmlReviewPage() {
             const isFinalApprovalStep = letterDetails?.workflowStatus === LetterWorkflowStatus.PENDING_APPROVAL;
             return (
                 <Space wrap>
-                    <Button danger icon={<CloseOutlined />} onClick={handleReject} loading={isActionLoading} disabled={isActionLoading || !actionComment.trim()}> Reject </Button> {/* Disable if no comment */}
+                    <Button danger icon={<CloseOutlined />} onClick={handleReject} loading={isActionLoading} disabled={isActionLoading || !actionComment.trim()}> Reject </Button>
                     {!isFinalApprovalStep && (
                         <Button icon={<SendOutlined />} onClick={showReassignModal} loading={isActionLoading} disabled={isActionLoading}> Reassign </Button>
                     )}
-                    <Button type="primary" icon={<CheckOutlined />} onClick={handleApprove} loading={isActionLoading} disabled={isActionLoading}>
+                    <Button type="primary" icon={<CheckOutlined />} onClick={handleApprove} loading={isActionLoading} disabled={isActionLoading || (isFinalApprovalStep && placedItems.length === 0)}>
                         {isFinalApprovalStep ? 'Final Approve' : 'Approve Step'}
                     </Button>
                 </Space>
@@ -560,18 +593,16 @@ export default function LetterHtmlReviewPage() {
                     icon={<SyncOutlined />}
                     onClick={handleResubmit}
                     loading={isActionLoading}
-                    // Disable if no comment OR action is already loading
                     disabled={isActionLoading || !resubmitComment.trim()}
                 >
                     Resubmit Letter
                 </Button>
             );
         }
-        return null; // No actions available for the current user/status
+        return null;
     };
 
-    // Status/Formatting helpers
-    const getStatusColor = (status: string): string => { /* ... (same as LetterPdfReviewPage) ... */
+    const getStatusColor = (status: string): string => {
         switch (status) {
             case LetterWorkflowStatus.PENDING_REVIEW: case LetterWorkflowStatus.PENDING_APPROVAL: return 'processing';
             case LetterWorkflowStatus.APPROVED: return 'success';
@@ -580,7 +611,8 @@ export default function LetterHtmlReviewPage() {
             default: return 'default';
         }
     };
-    const getReviewerStatusColor = (status: string): string => { /* ... (same as LetterPdfReviewPage) ... */
+
+    const getReviewerStatusColor = (status: string): string => {
         switch (status) {
             case LetterReviewerStatus.PENDING: return 'default';
             case LetterReviewerStatus.APPROVED: return 'success';
@@ -589,15 +621,14 @@ export default function LetterHtmlReviewPage() {
             case LetterReviewerStatus.SKIPPED: return 'default';
             default: return 'default';
         }
-     };
+    };
+
     const formatStatus = (status: string): string => status?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown';
     const formatActionType = (action: string): string => action?.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown Action';
     const getUserFullName = (user?: UserInfo | null): string => { if (!user) return 'System/Unknown'; return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email || 'Unnamed User'; };
     const getInitials = (user?: UserInfo | null): string => { if (!user) return 'S'; const first = user.firstName?.[0] || ''; const last = user.lastName?.[0] || ''; return (first + last).toUpperCase() || user.email?.[0].toUpperCase() || '?'; };
     const submitterName = useMemo(() => getUserFullName(letterDetails?.user), [letterDetails]);
 
-
-    // --- Main Render Function ---
     const renderContent = () => {
         if (isLoading || isUserLoading) {
             return <div className="text-center p-20"><Spin size="large" tip="Loading Letter Details..." /></div>;
@@ -605,12 +636,12 @@ export default function LetterHtmlReviewPage() {
         if (error) {
             return <Alert message="Error Loading Letter" description={error} type="error" showIcon closable onClose={() => setError(null)} />;
         }
-        if (!letterDetails || !fullFormDataForPreview || !letterDetails.template) { // Check for all required data
+        if (!letterDetails || !fullFormDataForPreview || !letterDetails.template) {
             return <Alert message="Incomplete Data" description="Could not load all necessary letter details, template, or form data." type="warning" showIcon />;
         }
 
         const showResubmitSection = isSubmitterOfRejectedLetter;
-        const showActionCommentArea = canTakeAction; // Show comment area only if user can Reject or Reassign
+        const showActionCommentArea = canTakeAction;
 
         return (
             <>
@@ -618,45 +649,97 @@ export default function LetterHtmlReviewPage() {
                     <Card className="mb-4" title="Resubmit Letter">
                         <Paragraph type="warning">This letter was rejected. Review comments below, add a required comment, and resubmit.</Paragraph>
                         <Space direction="vertical" style={{ width: '100%' }}>
-                             {/* Removed the Dragger component for PDF upload */}
                             <TextArea rows={4} placeholder="Comment explaining changes (required)..." value={resubmitComment} onChange={(e) => setResubmitComment(e.target.value)} disabled={isActionLoading} />
                         </Space>
                     </Card>
                 )}
 
-                <Row gutter={[16, 16]}>
-                    {/* Column 1: Rendered HTML Letter */}
-                    <Col xs={24} lg={16}>
-                        {/* Call the LetterPreviewPanelReview component */}
+                <Row gutter={[16, 16]} className="letter-review-row">
+                    <Col xs={24} lg={16} className="letter-preview-col">
                         <LetterPreviewPanelReview
                             template={letterDetails.template}
                             formData={fullFormDataForPreview}
                             dbData={dbData}
+                            signatureUrl={isFinalApprovalSigningMode ? null : (letterDetails.workflowStatus === LetterWorkflowStatus.APPROVED ? letterDetails.finalSignatureUrl : null)}
+                            stampUrl={isFinalApprovalSigningMode ? null : (letterDetails.workflowStatus === LetterWorkflowStatus.APPROVED ? letterDetails.finalStampUrl : null)}
+                            onLetterClick={handleLetterAreaClick}
+                            placedItems={isFinalApprovalSigningMode ? placedItems : []}
+                            onRemoveItem={handleRemoveItem}
                         />
                     </Col>
 
-                    {/* Column 2: Workflow Info & Actions */}
-                    <Col xs={24} lg={8}>
-                        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4" style={{ display: 'flex', flexDirection: 'column', minHeight: '600px' /* Ensure sidebar has some height */ }}>
-                            {/* Workflow Status */}
+                    <Col xs={24} lg={8} className="workflow-col">
+                        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4 workflow-container">
+                            {isFinalApprovalSigningMode && (
+                                <div className="border-b pb-4 mb-4 space-y-3">
+                                    <Title level={5} style={{ marginBottom: '8px' }}>Add Signature, Stamp & QR Code</Title>
+                                    <div>
+                                        <Typography.Title level={5} style={{ marginBottom: '8px' }}>Select Signature</Typography.Title>
+                                        {savedSignatures.length === 0 ? (
+                                            <Typography.Text type="secondary">No signatures available.</Typography.Text>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-2">
+                                                {savedSignatures.map(sig => (
+                                                    <button
+                                                        key={sig.id}
+                                                        type="button"
+                                                        onClick={() => setSelectedSignatureUrl(sig.r2Url)}
+                                                        className={`p-1 border rounded-md transition-all ${selectedSignatureUrl === sig.r2Url ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-300 hover:border-gray-400'}`}
+                                                        title={sig.name || 'Signature'}
+                                                    >
+                                                        <AntImage src={sig.r2Url} alt={sig.name || 'Signature'} width={80} height={35} preview={false} className="object-contain" />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {savedSignatures.length > 0 && (
+                                            <Button onClick={handlePlaceSignature} disabled={!selectedSignatureUrl} className="mt-2">Place Signature</Button>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <Typography.Title level={5} style={{ marginBottom: '8px' }}>Select Stamp</Typography.Title>
+                                        {savedStamps.length === 0 ? (
+                                            <Typography.Text type="secondary">No stamps available.</Typography.Text>
+                                        ) : (
+                                            <div className="flex flex-wrap gap-2">
+                                                {savedStamps.map(stamp => (
+                                                    <button
+                                                        key={stamp.id}
+                                                        type="button"
+                                                        onClick={() => setSelectedStampUrl(stamp.r2Url)}
+                                                        className={`p-1 border rounded-full transition-all ${selectedStampUrl === stamp.r2Url ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-300 hover:border-gray-400'}`}
+                                                        title={stamp.name || 'Stamp'}
+                                                    >
+                                                        <AntImage src={stamp.r2Url} alt={stamp.name || 'Stamp'} width={45} height={45} preview={false} className="object-contain rounded-full" />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {savedStamps.length > 0 && (
+                                            <Button onClick={handlePlaceStamp} disabled={!selectedStampUrl} className="mt-2">Place Stamp</Button>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <Typography.Title level={5} style={{ marginBottom: '8px' }}>Add QR Code</Typography.Title>
+                                        <Button icon={<QrcodeOutlined />} onClick={handlePlaceQrCode}>Place QR Code</Button>
+                                    </div>
+                                    {placingItem && (
+                                        <Alert message={`Click on the letter to place the ${placingItem.type}.`} type="info" showIcon closable onClose={() => setPlacingItem(null)} className="mt-2" />
+                                    )}
+                                </div>
+                            )}
+
                             <div>
                                 <Title level={5}>Workflow Status</Title>
                                 <Tag color={getStatusColor(letterDetails.workflowStatus)}>{formatStatus(letterDetails.workflowStatus)}</Tag>
                                 {letterDetails.workflowStatus !== LetterWorkflowStatus.APPROVED && letterDetails.workflowStatus !== LetterWorkflowStatus.REJECTED && letterDetails.nextActionById && (
-                                    <Text type="secondary" className="block mt-1">
-                                        Waiting for: {getUserFullName(letterDetails.letterReviewers?.find(r => r.userId === letterDetails.nextActionById)?.user)}
-                                    </Text>
+                                    <Text type="secondary" className="block mt-1"> Waiting for: {getUserFullName(letterDetails.letterReviewers?.find(r => r.userId === letterDetails.nextActionById)?.user)} </Text>
                                 )}
                             </div>
-
-                             {/* Action History */}
                             <div className="flex-grow overflow-hidden flex flex-col">
                                 <Title level={5}><HistoryOutlined /> Action History & Comments</Title>
-                                <div className="flex-grow overflow-y-auto pr-2 mb-2 border rounded p-2 bg-gray-50 min-h-[200px]"> {/* Added min-height */}
-                                    <List
-                                        itemLayout="horizontal"
-                                        dataSource={letterDetails.letterActionLogs?.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) ?? []} // Sort newest first
-                                        locale={{ emptyText: "No actions logged yet." }}
+                                <div className="flex-grow overflow-y-auto pr-2 mb-2">
+                                    <List itemLayout="horizontal" dataSource={letterDetails.letterActionLogs ?? []} locale={{ emptyText: "No actions logged yet." }}
                                         renderItem={item => (
                                             <List.Item>
                                                 <List.Item.Meta
@@ -668,12 +751,11 @@ export default function LetterHtmlReviewPage() {
                                                             {item.comment && (
                                                                 <Paragraph
                                                                     ellipsis={{ rows: 3, expandable: true, symbol: 'more' }}
-                                                                    className={`mt-1 mb-0 p-1.5 rounded border text-xs ${
+                                                                    className={`mt-1 mb-0 p-1 rounded border ${
                                                                         item.actionType === LetterActionType.REJECT_REVIEW || item.actionType === LetterActionType.FINAL_REJECT
-                                                                        ? 'bg-red-50 border-red-200'
-                                                                        : 'bg-blue-50 border-blue-200' // Use blue for other comments
-                                                                    }`}
-                                                                    style={{ whiteSpace: 'pre-wrap' }} // Preserve whitespace/newlines in comment
+                                                                            ? 'bg-red-50 border-red-100'
+                                                                            : 'bg-gray-50 border-gray-100'
+                                                                        }`}
                                                                 >
                                                                     {item.comment}
                                                                 </Paragraph>
@@ -686,33 +768,29 @@ export default function LetterHtmlReviewPage() {
                                     />
                                 </div>
                             </div>
-
-                            {/* Action Comment Area (for Reject/Reassign) */}
                             {showActionCommentArea && (
                                 <div className='mt-auto pt-2 border-t'>
                                     <Title level={5} style={{ marginBottom: '8px' }}>Action Comment / Reason</Title>
-                                    <TextArea rows={3} placeholder="Enter reason for rejection or note for reassignment here..." value={actionComment} onChange={(e) => setActionComment(e.target.value)} disabled={isActionLoading} />
-                                    <Text type="secondary" className='text-xs mt-1 block'>This comment/reason will be saved when you click Reject or Reassign.</Text>
+                                    <TextArea
+                                        rows={3}
+                                        placeholder="Enter reason for rejection, note for reassignment, or comment for approval..."
+                                        value={actionComment}
+                                        onChange={(e) => setActionComment(e.target.value)}
+                                        disabled={isActionLoading}
+                                    />
+                                    {canTakeAction && <Text type="secondary" className='text-xs block mt-1'>This comment/reason will be saved when you click Reject or Reassign.</Text>}
                                 </div>
                             )}
 
-                            {/* Reviewers List */}
-                            <div className="pt-2 border-t">
+                            <div>
                                 <Title level={5} style={{ marginTop: '16px' }}>Reviewers & Approver</Title>
-                                <List
-                                     size="small"
-                                     dataSource={letterDetails.letterReviewers?.sort((a, b) => a.sequenceOrder - b.sequenceOrder) ?? []}
-                                     locale={{emptyText: "No reviewers or approver assigned."}}
-                                     renderItem={item => (
+                                <List size="small" dataSource={letterDetails.letterReviewers?.sort((a, b) => a.sequenceOrder - b.sequenceOrder) ?? []} locale={{ emptyText: "No reviewers or approver assigned." }}
+                                    renderItem={item => (
                                         <List.Item>
-                                            <List.Item.Meta
-                                                 avatar={<Avatar src={item.user?.avatar} >{getInitials(item.user)}</Avatar>}
-                                                 title={<>{item.sequenceOrder === 999 ? 'Approver: ' : `Reviewer ${item.sequenceOrder}: `} {getUserFullName(item.user)}</>}
-                                                 description={<Tag color={getReviewerStatusColor(item.status)}>{formatStatus(item.status)}</Tag>}
-                                            />
+                                            <List.Item.Meta avatar={<Avatar src={item.user?.avatar} >{getInitials(item.user)}</Avatar>} title={<>{item.sequenceOrder === 999 ? 'Approver: ' : `Reviewer ${item.sequenceOrder}: `} {getUserFullName(item.user)}</>} description={<Tag color={getReviewerStatusColor(item.status)}>{formatStatus(item.status)}</Tag>} />
                                         </List.Item>
-                                     )}
-                                 />
+                                    )}
+                                />
                             </div>
                         </div>
                     </Col>
@@ -721,62 +799,33 @@ export default function LetterHtmlReviewPage() {
         );
     };
 
-
-    // --- Page Structure (from LetterPdfReviewPage) ---
     return (
         <div className="min-h-screen bg-gray-100 p-4 md:p-8">
-            {/* Header Bar */}
             <div className="mb-6 flex items-center justify-between bg-white p-4 rounded-lg shadow-sm flex-wrap">
                 <div className="flex items-center mr-4 mb-2 md:mb-0">
                     <Button icon={<ArrowLeftOutlined />} onClick={() => router.back()} type="text" aria-label="Go back" className="mr-2" />
-                    <Title level={3} className="mb-0 truncate">
-                        Review Letter: {letterDetails?.name || (letterId ? `ID ${letterId.substring(0, 8)}...` : '')}
-                    </Title>
+                    <Title level={3} className="mb-0 truncate"> Review Letter: {letterDetails?.name || (letterId ? `ID ${letterId.substring(0, 8)}...` : '')} </Title>
                 </div>
                 <div className="flex justify-end flex-grow">
-                    {renderActionButtons()} {/* Render Approve/Reject/Reassign/Resubmit buttons */}
+                    {renderActionButtons()}
                 </div>
             </div>
-
-            {/* Info Bar */}
             {!isLoading && letterDetails && (
                 <div className="mb-4 text-sm text-gray-700 bg-white p-3 rounded shadow-sm border-l-4 border-blue-500">
                     Submitted by: <span className="font-semibold">{submitterName}</span> on <span className="font-semibold">{new Date(letterDetails.createdAt).toLocaleDateString('en-CA')}</span>
                     <span className="ml-4 pl-4 border-l border-gray-300">Current Status: <Tag color={getStatusColor(letterDetails.workflowStatus)}>{formatStatus(letterDetails.workflowStatus)}</Tag></span>
                 </div>
             )}
+            {error && <Alert message="PDF Load Error" description={error} type="error" showIcon closable onClose={() => setError(null)} className="mb-4" />}
 
-            {/* Main Content Area */}
             {renderContent()}
 
-            {/* Reassign Modal */}
-            <Modal
-                title="Reassign Review Step"
-                open={isReassignModalVisible}
-                onOk={handleReassignSubmit}
-                onCancel={handleReassignCancel}
-                confirmLoading={isActionLoading}
-                okText="Reassign"
-                cancelText="Cancel"
-                okButtonProps={{ disabled: !reassignTargetUserId }} // Disable OK if no user selected
-            >
-                <Paragraph>Select the user to reassign this review step to. The comment/reason should be entered in the main text area before clicking Reassign.</Paragraph>
-                <Select
-                    showSearch
-                    placeholder="Select a user to reassign to"
-                    style={{ width: '100%', marginBottom: '10px' }}
-                    value={reassignTargetUserId}
-                    onChange={(value) => setReassignTargetUserId(value)}
-                    filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                    loading={reassignOptions.length === 0 && isReassignModalVisible} // Show loading only when modal is visible and options are empty
-                    options={reassignOptions.map(user => ({
-                         value: user.id,
-                         label: `${getUserFullName(user)} (${user.email})`, // Store full info in label for search
-                         key: user.id // Add key prop
-                    }))}
-                >
-                     {/* Options are now passed directly to Select component */}
+            <Modal title="Reassign Review Step" open={isReassignModalVisible} onOk={handleReassignSubmit} onCancel={handleReassignCancel} confirmLoading={isActionLoading} okText="Reassign" cancelText="Cancel" okButtonProps={{ disabled: !reassignTargetUserId || !actionComment.trim() }}>
+                <Paragraph>Select the user to reassign this review step to. They will be notified. The reason/note should be entered in the main text area below the history.</Paragraph>
+                <Select showSearch placeholder="Select a user to reassign to" style={{ width: '100%', marginBottom: '10px' }} value={reassignTargetUserId} onChange={(value) => setReassignTargetUserId(value)} filterOption={(input, option) => String(option?.label ?? '').toLowerCase().includes(input.toLowerCase())} loading={reassignOptions.length === 0} >
+                    {reassignOptions.map(user => ( <Option key={user.id} value={user.id} label={getUserFullName(user)}> <Space> <Avatar src={user.avatar} size="small">{getInitials(user)}</Avatar> {getUserFullName(user)} ({user.email}) </Space> </Option> ))}
                 </Select>
+                <Alert message="Note:" description="The comment for this reassignment will be taken from the 'Action Comment / Reason' text area on the main page." type="info" showIcon />
             </Modal>
         </div>
     );

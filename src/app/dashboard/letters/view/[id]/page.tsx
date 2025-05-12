@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Spin, Alert, Typography, Button, Descriptions, Card, message, Row, Col, Space, Tooltip } from 'antd'; // Added Space, Tooltip
-import { ArrowLeftOutlined, ZoomInOutlined, ZoomOutOutlined, UndoOutlined } from '@ant-design/icons'; // Added Zoom Icons
+import { ArrowLeftOutlined, ZoomInOutlined, ZoomOutOutlined, UndoOutlined, DownloadOutlined } from '@ant-design/icons'; // Added DownloadOutlined
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -12,6 +12,22 @@ import { API_URL } from '@/app/config'; //
 pdfjs.GlobalWorkerOptions.workerSrc = `/lib/pdfjs/pdf.worker.min.mjs`;
 
 const { Title, Text, Paragraph } = Typography;
+
+// Constants for QR code rendering
+const QR_PLACEHOLDER_COLOR = 'rgba(0, 150, 50, 0.7)';
+const QR_PLACEHOLDER_TEXT = 'QR';
+
+// Interface for placements (QR codes, signatures, etc.)
+interface PlacementInfo {
+    id?: string;
+    type: 'signature' | 'stamp' | 'qrcode';
+    url?: string;
+    pageNumber: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
 
 interface LetterDetail {
     id: string;
@@ -23,6 +39,8 @@ interface LetterDetail {
     originalPdfFileId?: string | null;
     finalSignedPdfUrl?: string | null; // Added based on model - maybe use this?
     qrCodeUrl?: string | null; // Added based on model
+    workflowStatus?: string; // Added for checking if letter is approved
+    placements?: PlacementInfo[] | null; // Added for QR code placements
     template?: {
         id: string;
         name: string;
@@ -69,6 +87,33 @@ const LetterViewPageContent = () => {
     const [numPages, setNumPages] = useState<number | null>(null);
     const [pageNumber, setPageNumber] = useState<number>(1);
     const [pdfScale, setPdfScale] = useState<number>(1.0); // Added for zoom
+    // Add page dimensions state for QR code rendering
+    const [pageDimensions, setPageDimensions] = useState<{ [key: number]: { width: number; height: number } }>({});
+
+    // Function to handle download click with feedback
+    const handleDownloadClick = () => {
+        if (pdfViewUrl) {
+            message.success('Downloading PDF. If download doesn\'t start automatically, please check your browser settings.');
+            // Backup direct download method
+            setTimeout(() => {
+                try {
+                    const link = document.createElement('a');
+                    link.href = pdfViewUrl;
+                    link.download = letterData?.name || `letter-${letterData?.id}.pdf`;
+                    link.target = '_blank';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                } catch (err) {
+                    console.error('Error initiating direct download:', err);
+                    // We already showed a success message, so don't show an error
+                    // unless the user reports issues with the download
+                }
+            }, 100);
+        } else {
+            message.error('Download URL not available. Please try again later.');
+        }
+    };
 
     useEffect(() => {
         const fetchLetterAndUrl = async () => {
@@ -166,6 +211,40 @@ const LetterViewPageContent = () => {
                     Back
                 </Button>
                 <Title level={3}>{letterData.name || 'Letter Details'}</Title>
+                
+                {/* Add a prominent download button for approved letters */}
+                {letterData.workflowStatus === 'approved' && pdfViewUrl && (
+                    <div style={{ marginBottom: '15px' }}>
+                        <Space>
+                            <Button 
+                                type="primary" 
+                                icon={<DownloadOutlined />}
+                                href={pdfViewUrl}
+                                target="_blank"
+                                download={letterData.name || `letter-${letterData.id}.pdf`}
+                                onClick={handleDownloadClick}
+                            >
+                                Download Approved PDF
+                            </Button>
+                            <Button
+                                type="default"
+                                onClick={handleDownloadClick}
+                            >
+                                Alternative Download
+                            </Button>
+                        </Space>
+                        <div style={{ marginTop: '5px', fontSize: '12px', color: 'gray' }}>
+                            If the primary download doesn't work, try the alternative download button.
+                        </div>
+                        {letterData.placements?.some(p => p.type === 'qrcode') && (
+                            <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f0f9ff', borderRadius: '4px', fontSize: '14px' }}>
+                                <strong>Note:</strong> This PDF includes embedded QR codes at the positions specified during review.
+                                The QR codes are permanently embedded in the document and should appear when you open the downloaded PDF.
+                            </div>
+                        )}
+                    </div>
+                )}
+                
                 <Descriptions size="small" bordered column={2} style={{ marginBottom: '20px' }}>
                     <Descriptions.Item label="Letter ID">{letterData.id}</Descriptions.Item>
                     <Descriptions.Item label="Created At">{new Date(letterData.createdAt).toLocaleString('en-GB')}</Descriptions.Item>
@@ -176,6 +255,22 @@ const LetterViewPageContent = () => {
                          <Descriptions.Item label="Original PDF ID">{letterData.originalPdfFileId}</Descriptions.Item>
                     )}
                      <Descriptions.Item label="Type">{isSignedPdf ? "Signed PDF Document" : isTemplateBased ? "Template Based" : "Unknown"}</Descriptions.Item>
+                    {letterData.workflowStatus && (
+                        <Descriptions.Item label="Status">
+                            <span style={{ 
+                                color: letterData.workflowStatus === 'approved' ? 'green' : 
+                                       letterData.workflowStatus === 'rejected' ? 'red' : 'orange',
+                                fontWeight: 'bold'
+                            }}>
+                                {letterData.workflowStatus.charAt(0).toUpperCase() + letterData.workflowStatus.slice(1)}
+                            </span>
+                            {letterData.workflowStatus === 'approved' && (
+                                <span style={{ marginLeft: '8px', fontSize: '12px' }}>
+                                    (PDF is available for download)
+                                </span>
+                            )}
+                        </Descriptions.Item>
+                    )}
                     {letterData.qrCodeUrl && (
                         <Descriptions.Item label="QR Code" span={2}>
                             <img src={letterData.qrCodeUrl} alt="Letter QR Code" style={{ width: '100px', height: '100px' }} />
@@ -207,6 +302,20 @@ const LetterViewPageContent = () => {
                                             <Tooltip title="Reset Zoom"><Button icon={<UndoOutlined />} onClick={handleResetZoom} disabled={pdfScale === 1.0 || !numPages} size="small" /></Tooltip>
                                             <Button icon={<ZoomInOutlined />} onClick={handleZoomIn} disabled={pdfScale >= 3.0 || !numPages} size="small" />
                                             <span className="text-sm font-semibold w-12 text-center">{Math.round(pdfScale * 100)}%</span>
+                                            {/* Download button - only visible for approved letters */}
+                                            {letterData.workflowStatus === 'approved' && pdfViewUrl && (
+                                                <Tooltip title="Download PDF">
+                                                    <Button 
+                                                        icon={<DownloadOutlined />} 
+                                                        size="small" 
+                                                        type="primary"
+                                                        href={pdfViewUrl} 
+                                                        target="_blank" 
+                                                        download={letterData.name || `letter-${letterData.id}.pdf`}
+                                                        onClick={handleDownloadClick}
+                                                    />
+                                                </Tooltip>
+                                            )}
                                         </Space>
                                     </div>
                                     {/* --- PDF Document Area --- */}
@@ -223,12 +332,87 @@ const LetterViewPageContent = () => {
                                                  key={`page_${pageNumber}`} // Re-render page on number change
                                                  pageNumber={pageNumber}
                                                  scale={pdfScale}
+                                                 onLoadSuccess={page => {
+                                                    // Store page dimensions for QR code placement
+                                                    const viewport = page.getViewport({ scale: 1 });
+                                                    setPageDimensions(prev => ({
+                                                        ...prev,
+                                                        [pageNumber]: { width: viewport.width, height: viewport.height }
+                                                    }));
+                                                 }}
                                                  renderTextLayer={true}
                                                  renderAnnotationLayer={false}
                                                  className="shadow-lg"
                                                  loading={<div style={{ height: '500px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}><Spin /></div>}
                                                  error={<div className="text-red-500">Failed to render page {pageNumber}.</div>}
-                                             />
+                                             >
+                                                {/* Render QR code placeholders */}
+                                                {letterData?.placements?.filter(item => 
+                                                    item.type === 'qrcode' && item.pageNumber === pageNumber
+                                                ).map(item => {
+                                                    const dims = pageDimensions[pageNumber];
+                                                    if (!dims) return null;
+                                                    
+                                                    // Calculate scaled dimensions based on current PDF scale
+                                                    const scaledX = item.x * pdfScale;
+                                                    const scaledY = item.y * pdfScale;
+                                                    const scaledWidth = item.width * pdfScale;
+                                                    const scaledHeight = item.height * pdfScale;
+                                                    
+                                                    // If the letter is approved and has a QR code, we display it differently
+                                                    // than a placeholder
+                                                    const isApproved = letterData.workflowStatus === 'approved';
+                                                    
+                                                    if (isApproved && letterData.qrCodeUrl) {
+                                                        // For approved letters, show the actual QR code image
+                                                        return (
+                                                            <Tooltip key={item.id || `qr-${pageNumber}-${scaledX}-${scaledY}`} title="QR Code">
+                                                                <img
+                                                                    src={letterData.qrCodeUrl}
+                                                                    alt="QR Code"
+                                                                    style={{
+                                                                        position: 'absolute',
+                                                                        left: `${scaledX}px`,
+                                                                        top: `${scaledY}px`,
+                                                                        width: `${scaledWidth}px`,
+                                                                        height: `${scaledHeight}px`,
+                                                                        userSelect: 'none',
+                                                                        zIndex: 10
+                                                                    }}
+                                                                />
+                                                            </Tooltip>
+                                                        );
+                                                    } else {
+                                                        // For non-approved letters or those without QR URL, show the placeholder
+                                                        return (
+                                                            <Tooltip key={item.id || `qr-${pageNumber}-${scaledX}-${scaledY}`} title="QR Code Placeholder">
+                                                                <div
+                                                                    style={{
+                                                                        position: 'absolute',
+                                                                        left: `${scaledX}px`,
+                                                                        top: `${scaledY}px`,
+                                                                        width: `${scaledWidth}px`,
+                                                                        height: `${scaledHeight}px`,
+                                                                        border: `2px dashed ${QR_PLACEHOLDER_COLOR}`,
+                                                                        backgroundColor: 'rgba(0, 150, 50, 0.1)',
+                                                                        userSelect: 'none',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        fontSize: Math.min(scaledWidth, scaledHeight) * 0.4,
+                                                                        color: QR_PLACEHOLDER_COLOR,
+                                                                        fontWeight: 'bold',
+                                                                        boxSizing: 'border-box',
+                                                                        zIndex: 10
+                                                                    }}
+                                                                >
+                                                                    {QR_PLACEHOLDER_TEXT}
+                                                                </div>
+                                                            </Tooltip>
+                                                        );
+                                                    }
+                                                })}
+                                             </Page>
                                         </Document>
                                     </div>
                                 </div>

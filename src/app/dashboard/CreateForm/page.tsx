@@ -5,34 +5,14 @@ import { message, Modal, Form, Input, Select, Button, List } from 'antd';
 import { v4 as uuidv4 } from 'uuid';
 import dynamic from 'next/dynamic';
 import CkeditorOzel from './ckeditor';
+import { FormTemplateContext, CustomField, FormData} from '@/contexts/FormTemplateContext';
+
 
 const DynamicCkeditorOzel = dynamic(() => import('./ckeditor'), {
     ssr: false, // Disable SSR for this component
 });
 
-export interface FormData {
-  company: string;
-  date: string;
-  customs: string;
-  person: string;
-  vendor: string;
-  contract: string;
-  value: string;
-  mode: string;
-  reference: string;
-  logo: string;
-  invoiceNumber: string;
-  cargoName: string;
-  cargoDescription: string;
-  documentType: string;
-  importPurpose: string;
-  requestPerson: string;
-  requestDepartment: string;
-  declarationNumber: string;
-  quantityBillNumber: string;
-  subContractorName: string;
-  subContractNumber: string;
-}
+
 
 export interface Reference {
   id: string;
@@ -49,29 +29,9 @@ export interface DynamicDbData {
   subContractorNames: Array<{ id: string; name: string }>;
 }
 
-export interface CustomField {
-  id: string;
-  name: string;
-  type: string;
-  initialValue: string;
-  placeholder: string;
-}
 
-interface ContextType {
-  formData: FormData;
-  setFormData: React.Dispatch<React.SetStateAction<FormData>>;
-  customFields: CustomField[];
-  setCustomFields: React.Dispatch<React.SetStateAction<CustomField[]>>;
-  templateContent: string;
-  setTemplateContent: React.Dispatch<React.SetStateAction<string>>;
-  saveDocumentChanges: () => Promise<void>;
-  isLoadingReferences: boolean;
-  referenceError: string | null;
-  currentTemplateId: string | null;
-  setCurrentTemplateId: React.Dispatch<React.SetStateAction<string | null>>;
-}
 
-export const FormTemplateContext = createContext<ContextType | null>(null);
+
 
 interface TemplateFormAppProps {
   children: React.ReactNode;

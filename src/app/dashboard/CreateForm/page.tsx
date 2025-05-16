@@ -158,7 +158,8 @@ function TemplatePanel() {
   const handleCreateField = async () => {
     try {
       const values = await form.validateFields();
-      const { name, type, initialValue } = values;
+      let { name, type, initialValue } = values;
+      name = name.trim().replace(/\s+/g, '');
       const response = await fetch(`${API_URL}/placeholders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

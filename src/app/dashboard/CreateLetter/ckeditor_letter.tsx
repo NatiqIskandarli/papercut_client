@@ -328,6 +328,11 @@ export default function CkeditorOzel({ onChange, initialData, customFields = [],
           background: transparent;
         }
 
+
+    .editor-container__editor_ozel{
+    overflow:scroll !important;
+    }
+
     .container__editor_ozel {
     box-sizing: border-box;
     min-width: calc(210mm + 2px);
@@ -341,7 +346,7 @@ export default function CkeditorOzel({ onChange, initialData, customFields = [],
     flex: 1 1 auto;
     margin-left: 0 !important;
     margin-right: 0 !important;
-    overflow:scroll;
+    overflow:scroll !important;
 }
   
         .editor-container__menu-bar,

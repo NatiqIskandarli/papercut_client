@@ -178,6 +178,7 @@ export default function CreateLetterPage() {
       setTemplateError(null);
       try {
         const sharedTpls = await fetchSharedTemplates(); // Returns SharedTemplateData[]
+        console.log("Shared templates fetched:", sharedTpls);
         setSharedTemplates(sharedTpls || []);
       } catch (err: any) {
         const msg = err.message || 'Şablonları yükləyərkən ümumi xəta.';
@@ -201,9 +202,12 @@ export default function CreateLetterPage() {
       setTemplateError(null);
       try {
         const details = await getTemplateDetailsForUser(selectedTemplateId); // Returns SavedTemplate
+        console.log("Template details fetched:", details.content);
         setSelectedTemplate(details); // No type error now
         if (details.content) {
           const placeholders = extractPlaceholders(details.content);
+
+          console.log("Extracted placeholders:", placeholders);
           const fields = placeholders.map(placeholder => ({
             id: placeholder,
             name: placeholder.replace(/-/g, ' ').toUpperCase(),

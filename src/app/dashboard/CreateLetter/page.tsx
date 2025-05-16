@@ -202,7 +202,7 @@ export default function CreateLetterPage() {
       setTemplateError(null);
       try {
         const details = await getTemplateDetailsForUser(selectedTemplateId); // Returns SavedTemplate
-        console.log("Template details fetched:", details.content);
+        console.log("Template details fetched:", details);
         setSelectedTemplate(details); // No type error now
         if (details.content) {
           const placeholders = extractPlaceholders(details.content);

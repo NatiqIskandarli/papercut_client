@@ -23,7 +23,6 @@ interface PlacementInfo {
     y: number;
     width: number;
     height: number;
-    // Add properties for percentage-based positioning
     xPct?: number;
     yPct?: number;
     widthPct?: number;

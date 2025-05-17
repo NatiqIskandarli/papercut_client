@@ -48,6 +48,7 @@ const NavigationBar = () => {
             if (!currentUser) return;
             try {
                 const fetchedNotifications = await notificationService.getNotifications();
+                console.log('Fetched notifications:', fetchedNotifications);
                 setNotifications(fetchedNotifications);
                 const count = fetchedNotifications.filter(notification => !notification.read).length;
                 setUnreadCount(count);
@@ -81,17 +82,14 @@ const NavigationBar = () => {
             await logoutUser(); // Call backend logout
         } catch (error) {
             console.error("Backend logout failed:", error);
-            // Continue with client-side cleanup even if backend fails
+
         } finally {
             // Clear any local storage items if necessary
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('access_token_w'); // Example if you still use this elsewhere
-                 // You might have other items to clear
             }
-            // Redirect to login page - use window.location for full redirect away from app state
+
             window.location.href = '/login';
-            // router.push('/login') might be intercepted by middleware before cookie clears
-             // setLoggingOut(false); // Not strictly needed due to redirect
         }
     };
 
@@ -109,14 +107,14 @@ const NavigationBar = () => {
             setNotifications(updatedNotifications);
 
             setUnreadCount(updatedNotifications.filter(n => !n.isRead).length);
+            console.log(`Notification marked as read: ${notification}`);
 
             if (notification.type === 'letter') {
-                router.push(`/dashboard/LetterReview/${notification.letterId}`);
-                console.log(`Navigating to LetterReview for ID: ${notification.letterId}`);
+                router.push(`/dashboard/LetterReview/${notification.entityId}`);
+                console.log(`Navigating to LetterReview for ID: ${notification.entityId}`);
             } else {
-                // Əgər type 'letter' deyilsə (məsələn, 'pdf' və ya başqa bir şeydirsə)
-                router.push(`/dashboard/LetterPdfReview/${notification.letterId}`);
-                console.log(`Navigating to LetterPdfReview for ID: ${notification.letterId}`);
+                router.push(`/dashboard/LetterPdfReview/${notification.entityId}`);
+                console.log(`Navigating to LetterPdfReview for ID: ${notification.entityId}`);
             }
 
             setQuickNotificationsVisible(false); // Close dropdown after navigation

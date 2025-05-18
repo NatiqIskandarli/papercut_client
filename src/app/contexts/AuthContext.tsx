@@ -1,4 +1,3 @@
-// AuthContext.tsx
 'use client';
 
 import {
@@ -8,7 +7,7 @@ import {
   useState,
   ReactNode,
 } from 'react';
-// import Cookies from 'js-cookie'; // Removed as we rely on HttpOnly cookies
+import Cookies from 'js-cookie';
 import axios from 'axios';
 
 type User = {
@@ -26,7 +25,7 @@ type User = {
 } | null;
 
 interface LoginResponse {
-  accessToken: string; // Still part of the response, even if primarily using HttpOnly cookie
+  accessToken: string;
   user: User;
   requiresTwoFactor?: boolean;
 }
@@ -39,7 +38,7 @@ export const AuthContext = createContext<{
 }>({
   user: null,
   loading: true,
-  login: async () => ({ accessToken: '', user: {} as User }), // Return structure matches LoginResponse
+  login: async () => ({ accessToken: '', user: {} as User }),
   logout: () => {},
 });
 
@@ -97,46 +96,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         twoFactorToken,
       }, {
-        withCredentials: true, // Ensures axios sends HttpOnly cookies set by the server
+        withCredentials: true,
       });
 
       const { data } = response;
 
-      // The backend sets the HttpOnly cookie.
-      // We just update the user state if login is successful and 2FA is not required.
-      if (!data.requiresTwoFactor && data.user) {
+      if (!data.requiresTwoFactor) {
+        // Set cookie for additional security
+        Cookies.set('access_token_w', data.accessToken);
+        
         setUser(data.user);
-        // Optionally, call checkAuth() again to verify the cookie was set and is working.
-        // await checkAuth();
+        await checkAuth(); // Verify the token immediately
       }
-      // If requiresTwoFactor is true, the UI should handle modal display.
-      // The accessToken is still in 'data' if needed for any immediate non-HttpOnly use (unlikely here).
+
       return data;
     } catch (error) {
       console.error('Login error:', error);
-      // Ensure user state is cleared on login failure if it was somehow set
-      setUser(null);
       throw error;
     }
   };
 
-  const logout = async () => { // Made async to potentially await backend logout
-    try {
-      // Call the backend logout endpoint to clear the HttpOnly cookie
-      await axios.post(`${API_URL}/auth/logout`, {}, {
-        withCredentials: true,
-      });
-    } catch (error) {
-      console.error('Backend logout failed:', error);
-      // Proceed with client-side cleanup even if backend call fails
-    } finally {
-      // Cookies.remove('access_token_w'); // Not needed for HttpOnly cookies
-      setUser(null); // Clear user state
-      // Optionally redirect to login page
-      if (typeof window !== 'undefined') {
-        // window.location.href = '/login';
-      }
-    }
+  const logout = () => {
+    Cookies.remove('access_token_w');
+    setUser(null);
   };
 
   return (

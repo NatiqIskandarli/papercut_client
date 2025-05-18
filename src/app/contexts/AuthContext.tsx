@@ -66,9 +66,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = await response.json();
         setUser(data.user);
       } else {
-        // If token is invalid or not sent, backend returns non-ok status
-        setUser(null); // Clear user state
-       // Cookies.remove('access_token_w'); // Not needed for HttpOnly cookies
+        const token = localStorage.getItem('access_token_w');
+        const response = await fetch(`${API_URL}/auth/verify`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data.user);
+        } else {
+          // If token is invalid or not sent, backend returns non-ok status
+          setUser(null); // Clear user state
+        }
+        
+
       }
     } catch (error) {
       console.error('Auth check failed:', error);

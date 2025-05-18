@@ -21,6 +21,10 @@ const customJestConfig = {
     '<rootDir>/node_modules/', 
     '<rootDir>/.next/'
   ],
+  // Add this to resolve the Haste module naming collision
+  modulePathIgnorePatterns: [
+    '<rootDir>/.next/standalone/'
+  ],
 };
 
 module.exports = createJestConfig(customJestConfig);

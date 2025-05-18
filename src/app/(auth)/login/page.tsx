@@ -1,3 +1,4 @@
+// page.tsx
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -5,12 +6,12 @@ import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Modal, Input, Button, message } from 'antd';
-import { checkEmail, sendMagicLink, verifyMagicLink } from '@/utils/api';
+import { checkEmail, sendMagicLink, verifyMagicLink, LoginResponse as ApiLoginResponse, User as ApiUser } from '@/utils/api'; // Assuming verifyMagicLink returns LoginResponse
 
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { login: contextLogin, user: authUser, loading: authLoading } = useAuth(); // Renamed to avoid conflict
   
   const [formData, setFormData] = useState({
     email: '',
@@ -22,11 +23,10 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
   const [twoFactorToken, setTwoFactorToken] = useState('');
-  const [tempUserData, setTempUserData] = useState<any>(null);
+  const [tempUserData, setTempUserData] = useState<any>(null); // Consider using a more specific type
   const [loginSuccess, setLoginSuccess] = useState(false);
 
   useEffect(() => {
-    // Check for magic link token in URL using multiple methods
     const params = new URLSearchParams(window.location.search);
     const urlToken = params.get('token');
     const searchParamsToken = searchParams.get('token');
@@ -40,9 +40,8 @@ function LoginContent() {
     if (token) {
       handleMagicLinkVerification(token);
     }
-  }, [searchParams]);
+  }, [searchParams]); // Removed 'router' as it's not directly used for token checking logic
 
-  // Add this new useEffect for handling redirections
   useEffect(() => {
     if (loginSuccess) {
       const returnUrl = searchParams.get('from') || '/dashboard';
@@ -51,28 +50,34 @@ function LoginContent() {
   }, [loginSuccess, router, searchParams]);
 
   const handleMagicLinkVerification = async (token: string) => {
+    setIsLoading(true);
+    setError('');
     try {
-      setIsLoading(true);
-      const response = await verifyMagicLink(token);
+      const response: ApiLoginResponse = await verifyMagicLink(token); // verifyMagicLink should set HttpOnly cookie via backend
       console.log('Magic link verification response:', response);
       
-      if (!response.user.password) {
-        // Redirect to create password page with the token
-        window.location.href = `/create-password?token=${token}`;
+      if (response.user && !response.user.password && !response.user.hasPassword) { // Check if password needs to be set
+        // Backend sets HttpOnly cookie, now redirect to create password
+        // The token in URL is for password creation, not session
+        router.push(`/create-password?token=${token}`);
         return;
       }
       
-      if (response.requiresTwoFactor) {
-        setTempUserData(response.user);
+      if (response.requiresTwoFactor && response.user) {
+        setTempUserData({ email: response.user.email }); // Store minimal data needed for 2FA, like email
         setShowTwoFactorModal(true);
+      } else if (response.user) {
+        // AuthContext will re-check auth due to HttpOnly cookie being set by backend.
+        // Forcing a reload or relying on AuthProvider's checkAuth upon navigation.
+        // We can directly navigate if the cookie is reliably set.
+        setLoginSuccess(true);
       } else {
-        localStorage.setItem('access_token_w', response.accessToken);
-        const returnUrl = searchParams.get('from') || '/dashboard';
-        window.location.href = returnUrl;
+         setError('Magic link verification failed to return user data.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Magic link verification error:', error);
-      message.error('Invalid or expired magic link');
+      setError(error.response?.data?.message || 'Invalid or expired magic link. Please try again.');
+      message.error(error.response?.data?.message || 'Invalid or expired magic link');
     } finally {
       setIsLoading(false);
     }
@@ -83,38 +88,51 @@ function LoginContent() {
     
     try {
       setIsLoading(true);
+      setError('');
       const response = await checkEmail(email);
       
       if (response.exists && response.hasPassword) {
         setShowPassword(true);
+      } else if (response.exists && !response.hasPassword) {
+        // User exists but no password, likely magic link flow or needs to set password
+        setShowPassword(false); // Keep magic link as primary option
+         message.info('This email exists. You can use a magic link or set a password if applicable.');
       } else if (!response.organization) {
         setError('Your email domain is not associated with any organization');
+      } else {
+        // Email doesn't exist but domain is fine (for new registrations via magic link if supported)
+        setShowPassword(false);
       }
-      setIsLoading(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Email check error:', error);
+      setError(error.response?.data?.message || 'Error checking email');
+    } finally {
       setIsLoading(false);
     }
   };
 
   const handleSendMagicLink = async () => {
+    if (!formData.email) {
+        message.error('Please enter your email address.');
+        return;
+    }
     try {
       setIsLoading(true);
       setError('');
       
-      // First check if the email is associated with an organization
       const emailCheck = await checkEmail(formData.email);
       if (!emailCheck.organization) {
         setError('Your email domain is not associated with any organization');
+        setIsLoading(false);
         return;
       }
       
       await sendMagicLink(formData.email);
-      message.success('Magic link sent! Please check your email');
+      message.success('Magic link sent! Please check your email.');
     } catch (error: any) {
       console.error('Error sending magic link:', error);
       if (error.response?.status === 403) {
-        setError('Your email domain is not associated with any organization');
+        setError('Your email domain is not associated with any organization.');
       } else if (error.response?.data?.message) {
         setError(error.response.data.message);
       } else if (error.response?.status === 429) {
@@ -133,35 +151,53 @@ function LoginContent() {
     setError('');
 
     try {
-      const response = await login(formData.email, formData.password);
+      // contextLogin is from useAuth(), it handles setting user state and HttpOnly cookie (via backend)
+      const response = await contextLogin(formData.email, formData.password); 
       
-      if (response?.requiresTwoFactor) {
-        setTempUserData(response.user);
+      if (response?.requiresTwoFactor && response.user) {
+        setTempUserData(response.user); // Store user data for 2FA step
         setShowTwoFactorModal(true);
-      } else if (response?.accessToken) {
-        localStorage.setItem('access_token_w', response.accessToken);
-        setLoginSuccess(true);
+      } else if (response?.user) { // Backend sets HttpOnly cookie
+        setLoginSuccess(true); // Trigger navigation
       } else {
-        setError('Login successful but no access token received');
+        setError('Login successful but no user data or token received as expected.');
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      setError(error.response?.data?.message || 'Invalid email or password');
+      setError(error.response?.data?.message || 'Invalid email or password. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Update handleTwoFactorSubmit as well
   const handleTwoFactorSubmit = async () => {
     setIsLoading(true);
+    setError('');
+    const emailFor2FA = tempUserData?.email || formData.email; // Prefer tempUserData if available
+    const passwordFor2FA = formData.password; // Password must be available from form
+
+    if (!emailFor2FA || !passwordFor2FA) {
+        setError('Email or password missing for 2FA verification.');
+        setIsLoading(false);
+        setShowTwoFactorModal(false);
+        return;
+    }
+
     try {
-      await login(formData.email, formData.password, twoFactorToken);
-      setShowTwoFactorModal(false);
-      setLoginSuccess(true);
-    } catch (error) {
+      // contextLogin handles 2FA token submission
+      const response = await contextLogin(emailFor2FA, passwordFor2FA, twoFactorToken);
+      if (response?.user && !response.requiresTwoFactor) {
+        setShowTwoFactorModal(false);
+        setLoginSuccess(true); // Trigger navigation
+      } else if (response?.requiresTwoFactor) {
+         setError('2FA still required or an issue occurred.'); // Should not happen if code is correct
+      } else {
+        setError('2FA verification failed or user data not received.');
+      }
+    } catch (error: any) {
       console.error('2FA verification error:', error);
-      message.error('Invalid verification code');
+      setError(error.response?.data?.message || 'Invalid verification code. Please try again.');
+      message.error(error.response?.data?.message || 'Invalid verification code');
     } finally {
       setIsLoading(false);
     }
@@ -207,7 +243,7 @@ function LoginContent() {
                     required
                     value={formData.email}
                     onChange={(e) => {
-                      setFormData({ ...formData, email: e.target.value });
+                      setFormData({ ...formData, email: e.target.value, password: '' }); // Clear password on email change
                       setShowPassword(false);
                       setError('');
                     }}
@@ -222,9 +258,10 @@ function LoginContent() {
                   type="primary"
                   onClick={handleSendMagicLink}
                   disabled={!formData.email || isLoading}
+                  loading={isLoading && !showPassword}
                   className="w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
                 >
-                  {isLoading ? 'Sending...' : 'Send Magic Link'}
+                  {isLoading && !showPassword ? 'Sending...' : 'Send Magic Link'}
                 </Button>
               )}
 
@@ -276,10 +313,14 @@ function LoginContent() {
                     <div className="text-sm leading-6">
                       <button
                         type="button"
-                        onClick={handleSendMagicLink}
+                        onClick={() => {
+                            setShowPassword(false); // Switch to magic link view
+                            setError('');
+                            handleSendMagicLink(); // Optionally send magic link immediately
+                        }}
                         className="font-semibold text-indigo-600 hover:text-indigo-500"
                       >
-                        Use Magic Link
+                        Use Magic Link Instead
                       </button>
                     </div>
                   </div>
@@ -287,10 +328,10 @@ function LoginContent() {
                   <div>
                     <button
                       type="submit"
-                      disabled={isLoading}
+                      disabled={isLoading || !formData.password}
                       className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
                     >
-                      {isLoading ? 'Signing in...' : 'Sign in'}
+                      {isLoading && showPassword ? 'Signing in...' : 'Sign in'}
                     </button>
                   </div>
                 </>
@@ -303,9 +344,17 @@ function LoginContent() {
       <Modal
         title="Two-Factor Authentication Required"
         open={showTwoFactorModal}
-        onCancel={() => setShowTwoFactorModal(false)}
+        onCancel={() => {
+            setShowTwoFactorModal(false);
+            setTempUserData(null); // Clear temporary data
+            setTwoFactorToken(''); // Clear token input
+        }}
         footer={[
-          <Button key="cancel" onClick={() => setShowTwoFactorModal(false)}>
+          <Button key="cancel" onClick={() => {
+            setShowTwoFactorModal(false);
+            setTempUserData(null);
+            setTwoFactorToken('');
+          }}>
             Cancel
           </Button>,
           <Button
@@ -313,13 +362,14 @@ function LoginContent() {
             type="primary"
             loading={isLoading}
             onClick={handleTwoFactorSubmit}
+            disabled={!twoFactorToken || twoFactorToken.length < 6}
           >
             Verify
           </Button>,
         ]}
       >
         <div className="two-factor-auth">
-          <p>Please enter the verification code from your authenticator app:</p>
+          <p>Please enter the verification code from your authenticator app for {tempUserData?.email || formData.email}:</p>
           <Input
             value={twoFactorToken}
             onChange={(e) => setTwoFactorToken(e.target.value)}
@@ -335,7 +385,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div>Loading...Wait..</div>}>
+    <Suspense fallback={<div>Loading Page Content...</div>}>
       <LoginContent />
     </Suspense>
   );

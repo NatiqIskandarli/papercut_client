@@ -36,21 +36,13 @@ const UserManagementPage = () => {
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
 
   const [addUserForm] = Form.useForm();
-  const [editForm] = Form.useForm();
-
-  const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token_w') : null;
-    if (!token) {
-        console.error("Authentication token not found.");
-        setError("Authentication token not found. Please log in again.");
-        return undefined;
-    }
+  const [editForm] = Form.useForm();  const getAuthHeaders = () => {
     return {
       headers: {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-      }
+      },
+      withCredentials: true
     };
   };
 

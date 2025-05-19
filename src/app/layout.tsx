@@ -7,8 +7,8 @@ import { AuthProvider } from "./contexts/AuthContext";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Worsie Panel",
-  description: "Worsie Dashboard",
+  title: "PaperCut Panel",
+  description: "PaperCut Dashboard",
 };
 
 export default function RootLayout({

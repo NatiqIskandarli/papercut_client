@@ -196,9 +196,16 @@ api.interceptors.response.use(
       window.location.pathname.includes('create-password'));
 
     if (error.response?.status === 401 && !isMagicLinkFlow) {
-      // Clear any remaining local storage just in case
+      // Clear cookies when auth fails
       if (typeof window !== 'undefined') {
+        // Clear any remaining localStorage just in case
         localStorage.removeItem('access_token_w');
+        
+        // Use Cookies module to remove it client-side
+        import('js-cookie').then(Cookies => {
+          Cookies.default.remove('access_token_w');
+        });
+        
         // Redirect to login
         window.location.href = '/login';
       }

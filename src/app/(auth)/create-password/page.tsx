@@ -41,7 +41,7 @@ function CreatePasswordForm() {
       });
 
       if (response.data.accessToken) {
-        localStorage.setItem('access_token_w', response.data.accessToken);
+        // Cookie is set by server automatically due to withCredentials
         message.success('Password set successfully');
         window.location.href = '/dashboard';
       }

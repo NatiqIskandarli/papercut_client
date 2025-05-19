@@ -85,8 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = response;
 
       if (!data.requiresTwoFactor) {
-        // Set cookie for additional security
-        Cookies.set('access_token_w', data.accessToken);
+        // Set cookie for client-side access (the HTTP-only cookie is already set by the server)
+        Cookies.set('access_token_w', data.accessToken, { 
+          secure: process.env.NODE_ENV === 'production', 
+          sameSite: 'strict'
+        });
         
         setUser(data.user);
         await checkAuth(); // Verify the token immediately

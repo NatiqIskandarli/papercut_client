@@ -66,7 +66,7 @@ function LoginContent() {
         setTempUserData(response.user);
         setShowTwoFactorModal(true);
       } else {
-        localStorage.setItem('access_token_w', response.accessToken);
+        // Cookie is already set by the server - no need to manually set localStorage
         const returnUrl = searchParams.get('from') || '/dashboard';
         window.location.href = returnUrl;
       }
@@ -139,7 +139,6 @@ function LoginContent() {
         setTempUserData(response.user);
         setShowTwoFactorModal(true);
       } else if (response?.accessToken) {
-        localStorage.setItem('access_token_w', response.accessToken);
         setLoginSuccess(true);
       } else {
         setError('Login successful but no access token received');

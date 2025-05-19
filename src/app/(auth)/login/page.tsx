@@ -42,10 +42,15 @@ function LoginContent() {
     }
   }, [searchParams]);
 
-  // Add this new useEffect for handling redirections
+  // Handle redirections with proper loading state
   useEffect(() => {
     if (loginSuccess) {
+      // Keep loading state true while redirecting
+      setIsLoading(true);
       const returnUrl = searchParams.get('from') || '/dashboard';
+      
+      // Use router.push - Next.js will handle the navigation
+      // We intentionally don't reset isLoading to keep "Signing in..." visible during navigation
       router.push(returnUrl);
     }
   }, [loginSuccess, router, searchParams]);
@@ -58,23 +63,27 @@ function LoginContent() {
       
       if (!response.user.password) {
         // Redirect to create password page with the token
+        // Keep loading state active during redirect
         window.location.href = `/create-password?token=${token}`;
+        // No need to reset loading state as page will change
         return;
       }
       
       if (response.requiresTwoFactor) {
         setTempUserData(response.user);
         setShowTwoFactorModal(true);
+        setIsLoading(false); // Reset loading only for 2FA prompt
       } else {
         // Cookie is already set by the server - no need to manually set localStorage
         const returnUrl = searchParams.get('from') || '/dashboard';
+        // Keep loading state active during redirect
         window.location.href = returnUrl;
+        // No need to reset loading state as page will change
       }
     } catch (error) {
       console.error('Magic link verification error:', error);
       message.error('Invalid or expired magic link');
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Only reset loading on error
     }
   };
 
@@ -138,31 +147,35 @@ function LoginContent() {
       if (response?.requiresTwoFactor) {
         setTempUserData(response.user);
         setShowTwoFactorModal(true);
+        setIsLoading(false); // Only reset loading state for 2FA prompt
       } else if (response?.accessToken) {
+        // Don't reset loading state on success - keep "Signing in..." visible during redirect
         setLoginSuccess(true);
+        // Note: isLoading stays true during the redirect process
       } else {
         setError('Login successful but no access token received');
+        setIsLoading(false);
       }
     } catch (error: any) {
       console.error('Login error:', error);
       setError(error.response?.data?.message || 'Invalid email or password');
-    } finally {
       setIsLoading(false);
     }
   };
 
-  // Update handleTwoFactorSubmit as well
+  // Update handleTwoFactorSubmit for consistent loading behavior
   const handleTwoFactorSubmit = async () => {
     setIsLoading(true);
     try {
       await login(formData.email, formData.password, twoFactorToken);
       setShowTwoFactorModal(false);
       setLoginSuccess(true);
+      // Note: isLoading stays true for consistent UX during redirect
+      // We don't reset loading state here to keep "Verifying..." visible
     } catch (error) {
       console.error('2FA verification error:', error);
       message.error('Invalid verification code');
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Only reset loading on error
     }
   };
 
@@ -182,7 +195,14 @@ function LoginContent() {
 
         <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-[480px]">
           <div className="bg-white px-6 py-12 shadow sm:rounded-lg sm:px-12">
-            <form className="space-y-6" onSubmit={handleSubmit}>
+            <form className="space-y-6" onSubmit={(e) => {
+              e.preventDefault();
+              if (showPassword) {
+                handleSubmit(e);
+              } else if (formData.email && !isLoading) {
+                handleSendMagicLink();
+              }
+            }}>
               {error && (
                 <div className="rounded-md bg-red-50 p-4">
                   <div className="flex">
@@ -211,6 +231,17 @@ function LoginContent() {
                       setError('');
                     }}
                     onBlur={(e) => handleEmailCheck(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault(); // Prevent form submission
+                        if (formData.email && !isLoading) {
+                          if (!showPassword) {
+                            handleSendMagicLink();
+                          }
+                          // Only allow Enter to submit when password is shown and filled
+                        }
+                      }
+                    }}
                     className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                   />
                 </div>
@@ -247,6 +278,14 @@ function LoginContent() {
                         onChange={(e) =>
                           setFormData({ ...formData, password: e.target.value })
                         }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (formData.email && formData.password && !isLoading) {
+                              handleSubmit(e as React.FormEvent);
+                            }
+                          }
+                        }}
                         className="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
                       />
                     </div>
@@ -313,7 +352,7 @@ function LoginContent() {
             loading={isLoading}
             onClick={handleTwoFactorSubmit}
           >
-            Verify
+            {isLoading ? 'Verifying...' : 'Verify'}
           </Button>,
         ]}
       >

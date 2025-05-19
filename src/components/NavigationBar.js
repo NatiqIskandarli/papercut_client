@@ -194,10 +194,10 @@ const NavigationBar = () => {
         <Header className="navigation-bar">
             <div className="navigation-links">
                <Link href="/dashboard/" className={`nav-link ${isPaperCut ? '' : 'active'}`}>Home</Link>
-               <Link href="/dashboard/dynamic-sheets" className="nav-link">Dynamic Sheets</Link>
-               <Link href="/dashboard/recordo" className="nav-link">Recordo</Link>
-               <Link href="/dashboard/PaperCut" className={`nav-link ${isPaperCut ? 'active' : ''}`}>Papercut</Link>
-               <Link href="/dashboard/notebook" className="nav-link">Notebook</Link>
+               <Link href="#" className="nav-link">Dynamic Sheets</Link>
+               <Link href="#" className="nav-link">Recordo</Link>
+               <Link href="/dashboard" className={`nav-link active`}>Papercut</Link>
+               <Link href="#" className="nav-link">Notebook</Link>
             </div>
 
             <div className="navigation-actions">

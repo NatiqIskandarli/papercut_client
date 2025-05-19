@@ -133,25 +133,31 @@ const Sidebar = () => {
                       <li>
                         <Link href='/dashboard/CreateForm'>
                           <EditOutlined />
-                          <span className={collapsed ? 'hidden' : ''}> Create Template</span>
+                          <span className={collapsed ? 'hidden' : ''}> New Template</span>
                         </Link>
                       </li>
                       <li>
                         <Link href='/dashboard/CreateLetter'>
                           <MailOutlined />
-                          <span className={collapsed ? 'hidden' : ''}> Submit Letter</span>
+                          <span className={collapsed ? 'hidden' : ''}> Use Template</span>
                         </Link>
                       </li>                 
                       <li>
                         <Link href='/dashboard/Templates/Created'>
                           <FolderOpenOutlined />
-                          <span className={collapsed ? 'hidden' : ''}> Created</span>
+                          <span className={collapsed ? 'hidden' : ''}> My Templates</span>
                         </Link>
                       </li>
                       <li>
                         <Link href='/dashboard/Templates/Shared'>
                           <ShareAltOutlined />
-                          <span className={collapsed ? 'hidden' : ''}> Shared</span>
+                          <span className={collapsed ? 'hidden' : ''}> Shared with me</span>
+                        </Link>
+                      </li>
+                      <li>
+                        <Link href='/dashboard/Templates/Shared'>
+                          <ShareAltOutlined />
+                          <span className={collapsed ? 'hidden' : ''}> Shared by me</span>
                         </Link>
                       </li>
                     </ul>

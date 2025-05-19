@@ -4,6 +4,27 @@ import { message } from 'antd';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
+// Track if a token refresh is in progress
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (value: unknown) => void;
+  reject: (reason?: any) => void;
+  config: any;
+}> = [];
+
+// Process the queue of failed requests
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach(promise => {
+    if (error) {
+      promise.reject(error);
+    } else if (token) {
+      promise.resolve(token);
+    }
+  });
+  
+  failedQueue = [];
+};
+
 export interface User {
   id: string;
   email: string;
@@ -189,13 +210,93 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response.data,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+    
     const isMagicLinkFlow =
       typeof window !== 'undefined' &&
       (window.location.href.includes('token=') ||
       window.location.pathname.includes('create-password'));
+    
+    // Check if we're on the login page already
+    const isLoginPage = 
+      typeof window !== 'undefined' && 
+      window.location.pathname.includes('login');
+      
+    console.error('API Error:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method
+    });
 
-    if (error.response?.status === 401 && !isMagicLinkFlow) {
+    // Handle token refresh when token is expired (and not already refreshing)
+    if (error.response?.status === 401 && 
+        !originalRequest._retry && 
+        !originalRequest.url?.includes('/auth/refresh') && 
+        !isMagicLinkFlow && 
+        !isLoginPage) {
+      
+      if (isRefreshing) {
+        // If refresh is in progress, queue this request
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject, config: originalRequest });
+        })
+          .then(() => {
+            return api(originalRequest);
+          })
+          .catch(err => {
+            return Promise.reject(err);
+          });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        console.log('Attempting to refresh token...');
+        // Call refresh token endpoint (the server should use HTTP-only cookies)
+        const response = await axios.post(`${API_URL}/auth/refresh`, {}, {
+          withCredentials: true
+        });
+        
+        // Process queued requests
+        processQueue(null, response.data.accessToken);
+        console.log('Token refreshed successfully');
+        
+        return api(originalRequest);
+      } catch (refreshError) {
+        // If refresh fails, process queue with error and redirect to login
+        processQueue(refreshError, null);
+        console.log('Token refresh failed, redirecting to login');
+        
+        // Clear cookies when auth fails
+        if (typeof window !== 'undefined') {
+          // Clear any remaining localStorage just in case
+          localStorage.removeItem('access_token_w');
+          
+          // Use Cookies module to remove it client-side
+          import('js-cookie').then(Cookies => {
+            Cookies.default.remove('access_token_w');
+            
+            // Only redirect if we're not already on the login page
+            if (!isLoginPage) {
+              // Save the current URL to return to after login
+              const currentPath = window.location.pathname;
+              window.location.href = `/login?from=${encodeURIComponent(currentPath)}`;
+            }
+          });
+        }
+        
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+    
+    // For non-token related 401 errors or if refresh failed
+    if (error.response?.status === 401 && !isMagicLinkFlow && !isLoginPage) {
+      console.log('Authentication error, redirecting to login');
+      
       // Clear cookies when auth fails
       if (typeof window !== 'undefined') {
         // Clear any remaining localStorage just in case
@@ -204,10 +305,14 @@ api.interceptors.response.use(
         // Use Cookies module to remove it client-side
         import('js-cookie').then(Cookies => {
           Cookies.default.remove('access_token_w');
+          
+          // Only redirect if we're not already on the login page
+          if (!isLoginPage) {
+            // Save the current URL to return to after login
+            const currentPath = window.location.pathname;
+            window.location.href = `/login?from=${encodeURIComponent(currentPath)}`;
+          }
         });
-        
-        // Redirect to login
-        window.location.href = '/login';
       }
     }
     return Promise.reject(error);

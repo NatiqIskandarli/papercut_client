@@ -26,7 +26,7 @@ const { Title } = Typography;
 interface PendingLetter {
   id: string;
   name: string | null;
-  workflowStatus: LetterWorkflowStatus; // Use the enum
+  workflowStatus: LetterWorkflowStatus;
   createdAt: string;
   updatedAt: string;
   originalPdfFileId: string | null;
@@ -36,6 +36,7 @@ interface PendingLetter {
       firstName: string | null;
       lastName: string | null;
       email: string;
+      avatar?: string;
   };
   letterActionLogs?: Array<{ comment: string | null; createdAt: string }> | null;
 }
@@ -49,8 +50,8 @@ interface FormattedRecord {
     sentOn: string;
     priority: string;
     deadlines: string;
-    status: any; // Can be string or object { label, color }
-    workflowStatus?: LetterWorkflowStatus; // Added workflow status
+    status: any; 
+    workflowStatus?: LetterWorkflowStatus;
     rejectedOn?: string;
     reason?: string;
 }
@@ -59,7 +60,7 @@ interface FormattedRecord {
 const formatLetterForAction = (letter: PendingLetter): FormattedRecord => {
   const submitter = letter.user;
   const submitterName = submitter ? `${submitter.firstName || ''} ${submitter.lastName || ''}`.trim() || submitter.email : 'Unknown User';
-  const submitterAvatar = '/images/avatar.png';
+  const submitterAvatar = submitter && submitter.avatar ? submitter.avatar : '/images/avatar.png';
 
  return {
      key: letter.id,
@@ -113,7 +114,8 @@ const InboxPage = () => {
   const fetchLettersForMyAction = async () => {
     try {
         setLoadingLettersAction(true);
-        const letters: PendingLetter[] = await getLettersPendingMyAction(); // Use the conceptually updated API call
+        const letters: PendingLetter[] = await getLettersPendingMyAction();
+
         const formatted = letters.map(formatLetterForAction);
         setPendingLettersForAction(formatted);
     } catch (error) {

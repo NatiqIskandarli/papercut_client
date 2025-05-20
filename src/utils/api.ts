@@ -624,6 +624,7 @@ export interface LetterDetailsApiResponse {
       firstName: string | null;
       lastName: string | null;
       email: string;
+      avatar: string | null;
   } | null;
   createdAt: string;
   updatedAt: string;
@@ -850,14 +851,15 @@ export const getTemplateDetailsForUser = async (id: string): Promise<SavedTempla
         firstName: string | null;
         lastName: string | null;
         email: string;
+        avatar?: string;
     };
     letterActionLogs?: Array<{ comment: string | null; createdAt: string }> | null;
   }
 
   export const getLettersPendingMyAction = async (): Promise<PendingLetter[]> => {
     try {
-        console.log('API Call: GET /letters/pending-my-action');
-        const response = await typedApi.get('/letters/pending-my-action');
+      const response = await typedApi.get('/letters/pending-my-action');
+
 
         if (!response) {
             throw new Error('API returned no response when fetching pending action letters.');

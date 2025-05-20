@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { CKEditor, useCKEditorCloud } from '@ckeditor/ckeditor5-react';
 import { API_URL } from '@/app/config';
+import { usePathname } from 'next/navigation';
 
 const LICENSE_KEY =
   'eyJhbGciOiJFUzI1NiJ9.eyJleHAiOjE3NDgyMTc1OTksImp0aSI6ImU3NjNiMjc0LTA1YWEtNDIwMS1iMmQxLTM0NTBhODlkZGI4OSIsInVzYWdlRW5kcG9pbnQiOiJodHRwczovL3Byb3h5LWV2ZW50LmNrZWRpdG9yLmNvbSIsImRpc3RyaWJ1dGlvbkNoYW5uZWwiOlsiY2xvdWQiLCJkcnVwYWwiLCJzaCJdLCJ3aGl0ZUxhYmVsIjp0cnVlLCJsaWNlbnNlVHlwZSI6InRyaWFsIiwiZmVhdHVyZXMiOlsiKiJdLCJ2YyI6IjM1ZTQwYmNlIn0.3rgZ1kQP8XaHbF6sM4iZ2Pss4hjtnrAX3zieWNpwczqBDGDA15Y8nPLO5fu4_Ap-1RzXh24Iw3LdFK7JrzodlQ';
@@ -20,6 +21,8 @@ export default function CkeditorOzel({ onChange, initialData, customFields = [],
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const cloud = useCKEditorCloud({ version: '45.0.0' });
+  const pathname = usePathname();
+  const isCreateLetterPage = pathname && pathname.includes('CreateLetter') || pathname.includes('LetterReview');
 
   // Mutable reference for customFields
   const customFieldsRef = useRef(customFields);
@@ -315,8 +318,10 @@ export default function CkeditorOzel({ onChange, initialData, customFields = [],
         </div>
       </div>
   
-      {/* Inline CSS */}
       <style jsx>{`
+      
+
+
         .main-container {
           width: 100%;
           max-width: 100%;
@@ -328,35 +333,44 @@ export default function CkeditorOzel({ onChange, initialData, customFields = [],
           background: transparent;
         }
 
+        .editor-container__editor_ozel {
+          overflow: scroll !important;
+          width: ${isCreateLetterPage ? 'auto' : '750px'};
+          padding: ${isCreateLetterPage ? '15px' : '20px'};
+          height: ${isCreateLetterPage ? '1192px' : '1192px'};
+          background: white;
+          margin: 15px;
+          box-shadow: 0 7px 7px hsla(0, 0%, 0%, 0.078);
+        }
 
-    .editor-container__editor_ozel{
-    overflow:scroll !important;
-    }
-
-    .container__editor_ozel {
-    box-sizing: border-box;
-    min-width: calc(210mm + 2px);
-    max-width: calc(210mm + 2px);
-    min-height: 297mm;
-    height: -moz-fit-content;
-    height: fit-content;
-    padding: 0 !important;
-    background: hsl(0, 0%, 100%);
-    box-shadow: 0 2px 3px hsla(0, 0%, 0%, 0.078);
-    flex: 1 1 auto;
-    margin-left: 0 !important;
-    margin-right: 0 !important;
-    overflow:scroll !important;
-}
+        .container__editor_ozel {
+          box-sizing: border-box;
+          min-width: calc(210mm + 2px);
+          max-width: calc(210mm + 2px);
+          min-height: 297mm;
+          height: -moz-fit-content;
+          height: fit-content;
+          padding: 0 !important;
+          background: hsl(0, 0%, 100%);
+          box-shadow: 0 2px 3px hsla(0, 0%, 0%, 0.078);
+          flex: 1 1 auto;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+          overflow: scroll !important;
+        }
   
         .editor-container__menu-bar,
         .editor-container__toolbar {
-          display: ${readOnly ? 'none' : 'block'}; /* Toolbarı gizlətmək */
+          display: ${readOnly ? 'none' : 'block'};
         }
   
         .editor-container__editor-wrapper {
           width: 100%;
-          overflow: hidden;
+          overflow: ${isCreateLetterPage ? 'scroll' : 'hidden'};
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          max-height: ${isCreateLetterPage ? '1000px' : '1000px'};
         }
   
         .editor-container__editor {

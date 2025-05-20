@@ -5,8 +5,10 @@ import { Select, message, Spin, Button } from 'antd';
 import { getTemplateDetailsForUser, fetchSharedTemplates } from '@/utils/api';
 import axios from 'axios';
 import { API_URL } from '@/app/config';
+import { usePathname } from 'next/navigation';
 //import './editor_ozel.css';
 import CkeditorOzel from './ckeditor_letter';
+
 
 // Assuming these interfaces are defined in your api.ts or elsewhere
 interface CustomField {
@@ -99,11 +101,15 @@ function LetterPreviewPanel({
   formData,
   onSaveLetter,
   isSaving,
+  letterName,
+  setLetterName,
 }: {
   template: SavedTemplate | null;
   formData: FormData;
   onSaveLetter: () => void;
   isSaving: boolean;
+  letterName: string;
+  setLetterName: React.Dispatch<React.SetStateAction<string>>;
 }) {
     const [processedContent, setProcessedContent] = useState<string>('');
 
@@ -126,8 +132,6 @@ function LetterPreviewPanel({
     return <div className="flex items-center justify-center h-full text-gray-500">Məktub önizləməsi üçün şablon seçin və ya məzmun yoxdur.</div>;
   }
 
- // const processedContent = renderContentWithPlaceholders(template.content);
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -137,6 +141,20 @@ function LetterPreviewPanel({
         </Button>
       </div>
       
+      <div className="mb-4">
+        <label htmlFor="letterName" className="block text-sm font-medium text-gray-700 mb-1">
+          Məktubun adı
+        </label>
+        <input
+          id="letterName"
+          type="text"
+          value={letterName}
+          onChange={(e) => setLetterName(e.target.value)}
+          className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm"
+          placeholder="Məktubun adını daxil edin"
+        />
+      </div>
+
       {/* <div className="letter-preview-scroll" style={{ maxHeight: '800px', overflowY: 'auto' }}>
         <div className="letter-preview-container letter-content ck-content" 
           dangerouslySetInnerHTML={{ __html: processedContent }} />
@@ -171,6 +189,9 @@ export default function CreateLetterPage() {
   const [formData, setFormData] = useState<FormData>({});
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [isSavingLetter, setIsSavingLetter] = useState(false);
+  const [letterName, setLetterName] = useState('');
+  const pathname = usePathname();
+  const isCreateLetterPage = pathname && pathname.includes('CreateLetter');
 
   useEffect(() => {
     const fetchSharedTemplatesData = async () => {
@@ -251,6 +272,11 @@ export default function CreateLetterPage() {
       return;
     }
 
+    if (!letterName.trim()) {
+      message.warning("Zəhmət olmasa, məktubun adını daxil edin.");
+      return;
+    }
+
     const missingFields = customFields.filter(field => !formData[field.id] || formData[field.id].trim() === '');
     if (missingFields.length > 0) {
       message.warning(`Zəhmət olmasa, tələb olunan sahələri doldurun: ${missingFields.map(f => f.name).join(', ')}`);
@@ -263,12 +289,14 @@ export default function CreateLetterPage() {
       const letterPayload = {
         templateId: selectedTemplateId,
         formData: formData,
+        name: letterName.trim()
       };
       const savedLetterData = await saveLetter(letterPayload);
       message.success({ content: `Məktub (ID: ${savedLetterData.id}) uğurla yadda saxlandı!`, key: 'savingLetter', duration: 3 });
       setSelectedTemplateId(null);
       setSelectedTemplate(null);
       setFormData({});
+      setLetterName('');
     } catch (error: any) {
       console.error("Error saving letter:", error);
       let errorMsg = 'Məktubu yadda saxlayarkən naməlum xəta baş verdi.';
@@ -284,6 +312,15 @@ export default function CreateLetterPage() {
   };
 
   return (
+    <>
+    <style jsx>{`
+      .min-h-screen{
+        min-height:  ${isCreateLetterPage ? 'auto !important' : '100vh'};
+      }
+    `}</style>
+    
+
+
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
       {/* Template Selection */}
       <div className="mb-6 bg-white p-4 rounded-lg shadow">
@@ -306,7 +343,7 @@ export default function CreateLetterPage() {
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-template-columns lg:gap-8" style={{ gridTemplateColumns: '1fr 2fr' }}>
         {/* Form Panel */}
         <div className={`bg-white rounded-lg shadow-md p-6 transition-opacity duration-300 ${!selectedTemplateId || isLoadingTemplateDetails ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
           {selectedTemplateId && !isLoadingTemplateDetails && selectedTemplate ? (
@@ -329,15 +366,18 @@ export default function CreateLetterPage() {
             formData={formData}
             onSaveLetter={handleSaveLetter}
             isSaving={isSavingLetter}
+            letterName={letterName}
+            setLetterName={setLetterName}
           />
         </div>
       </div>
     </div>
+    </>
   );
 }
 
-// Placeholder saveLetter function (example)
-async function saveLetter(payload: { templateId: string; formData: FormData }) {
+
+async function saveLetter(payload: { templateId: string; formData: FormData; name: string }) {
     const response = await axios.post(`${API_URL}/letters`, payload, {
         withCredentials: true,
     });

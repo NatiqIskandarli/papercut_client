@@ -26,6 +26,7 @@ interface Letter {
       id: string;
       name: string;
   } | null;
+  workflowStatus?: string;
 }
 
 const MyStaffPage = () => {
@@ -43,43 +44,7 @@ const MyStaffPage = () => {
     }
   }, [activeTab]);
 
-  const fetchMyLetters = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_URL}/letters`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-      });
-
-      if (!response.ok) {
-         const errorData = await response.json().catch(() => ({ message: 'Failed to fetch letters' }));
-         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const formattedLetters = data.map((letter: any): Letter => ({
-        key: letter.id,
-        id: letter.id,
-        name: letter.name ?? (letter.template ? `From: ${letter.template.name}` : 'Signed PDF Document'),
-        templateId: letter.templateId,
-        signedPdfUrl: letter.signedPdfUrl,
-        createdAt: new Date(letter.createdAt).toLocaleDateString('en-GB', {
-          year: 'numeric', month: 'short', day: 'numeric',
-          hour: '2-digit', minute: '2-digit'
-        }),
-        template: letter.template ? { id: letter.template.id, name: letter.template.name } : null,
-      }));
-      setMyLetters(formattedLetters);
-    } catch (error: any) {
-      console.error('Error fetching letters:', error);
-      message.error(`Failed to load letters: ${error.message}`);
-      setMyLetters([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchMyLetters = async () => {    setLoading(true);    try {      const response = await fetch(`${API_URL}/letters`, {        credentials: 'include',        headers: {          'Content-Type': 'application/json'        },      });      if (!response.ok) {         const errorData = await response.json().catch(() => ({ message: 'Failed to fetch letters' }));         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);      }      const data = await response.json();      const formattedLetters = data.map((letter: any): Letter => ({        key: letter.id,        id: letter.id,        name: letter.name ?? (letter.template ? `From: ${letter.template.name}` : 'Signed PDF Document'),        templateId: letter.templateId,        signedPdfUrl: letter.signedPdfUrl,        createdAt: new Date(letter.createdAt).toLocaleDateString('en-GB', {          year: 'numeric', month: 'short', day: 'numeric',          hour: '2-digit', minute: '2-digit'        }),        template: letter.template ? { id: letter.template.id, name: letter.template.name } : null,        workflowStatus: letter.workflowStatus      }));      setMyLetters(formattedLetters);    } catch (error: any) {      console.error('Error fetching letters:', error);      message.error(`Failed to load letters: ${error.message}`);      setMyLetters([]);    } finally {      setLoading(false);    }  };
 
   const handleTabChange = (key: string) => {
     setActiveTab(key);
@@ -89,7 +54,7 @@ const MyStaffPage = () => {
     router.push(`/dashboard/letters/view/${letterId}`);
   };
 
-  const letterColumns: ColumnsType<Letter> = [
+    const letterColumns: ColumnsType<Letter> = [
     {
         title: 'Type',
         key: 'type',
@@ -105,6 +70,40 @@ const MyStaffPage = () => {
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => name || 'Untitled Letter'
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      width: 120,
+      render: (_, record) => {
+        let color = 'default';
+        let text = record.workflowStatus || 'Unknown';
+        
+        switch(record.workflowStatus) {
+          case 'approved':
+            color = 'green';
+            text = 'Approved';
+            break;
+          case 'pending_review':
+            color = 'blue';
+            text = 'Pending Review';
+            break;
+          case 'pending_approval':
+            color = 'orange';
+            text = 'Pending Approval';
+            break;
+          case 'rejected':
+            color = 'red';
+            text = 'Rejected';
+            break;
+          case 'draft':
+            color = 'default';
+            text = 'Draft';
+            break;
+        }
+        
+        return <Tag color={color}>{text}</Tag>;
+      }
     },
     {
       title: 'Created At',

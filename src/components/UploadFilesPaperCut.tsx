@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Uppy from '@uppy/core';
 import XHRUpload from '@uppy/xhr-upload';
 import { ZoomInOutlined, ZoomOutOutlined, UndoOutlined, PlusOutlined, ArrowUpOutlined, ArrowDownOutlined, DeleteOutlined, UploadOutlined, SyncOutlined, QrcodeOutlined } from '@ant-design/icons'; // Added QrcodeOutlined
+import Cookies from 'js-cookie';
 import '@uppy/core/dist/style.css';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -158,14 +159,28 @@ const UploadAndSignPdf: React.FC = () => {
                 formData: true,
                 fieldName: 'files',
                 bundle: false,
-                headers: () => {
-                    const token = window.localStorage.getItem('access_token_w');
-                    const headers: Record<string, string> = {};
-                    if (token) { headers.Authorization = `Bearer ${token}`; }
-                    return headers;
-                }
+                withCredentials: true, // Cookie'lərin ötürülməsini təmin edir
+                // headers: () => {
+                    // Əvvəlki yanaşmanı şərh halına gətirdik
+                    // const token = localStorage.getItem('access_token_w');
+                    // console.log('Token:', token);
+                    // const headers: Record<string, string> = {};
+                    // if (token) { headers.Authorization = `Bearer ${token}`; }
+                    // return headers;
+                // }
             })
-
+    
+            // Error hadisələrini izləmək üçün
+            uppy.on('error', (error) => {
+                console.error('Uppy error:', error);
+                message.error(`Upload error: ${error.message}`);
+            });
+    
+            uppy.on('upload-error', (file, error, response) => {
+                console.error('File upload error:', { file, error, response });
+                message.error(`File upload failed: ${error.message}`);
+            });
+    
             uppy.on('upload', () => { setIsUploading(true); setUploadProgress(0); })
             uppy.on('upload-progress', () => { const totalProgress = uppy.getState().totalProgress || 0; setUploadProgress(totalProgress); })
             uppy.on('upload-success', file => { message.success(`${file?.name || 'File'} uploaded`); fetchUnallocatedFiles(); })

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { Spin, Alert, Button, Typography, Row, Col, message, Tag, Modal, Input, Select, List, Avatar, Space, Tooltip, Image as AntImage, Card } from 'antd';
 import {
     ArrowLeftOutlined, CheckOutlined, CloseOutlined, SendOutlined, HistoryOutlined,
-    SyncOutlined, QrcodeOutlined,
+    SyncOutlined, QrcodeOutlined, InfoCircleOutlined,
 } from '@ant-design/icons';
 import { getCurrentUser } from '@/utils/api';
 import axios from 'axios';
@@ -213,7 +213,7 @@ function LetterPreviewPanelReview({
             <style jsx>{`
                 .ck-editor-wrapper {
                     padding: 2rem 3rem;
-                    max-height: 800px;
+                    max-height: 1200px;
                     overflow-y: auto;
                     position: relative;
                 }
@@ -272,6 +272,8 @@ export default function LetterHtmlReviewPage() {
     const [selectedStampUrl, setSelectedStampUrl] = useState<string | null>(null);
     const [placedItems, setPlacedItems] = useState<PlacedItemHtml[]>([]);
     const [placingItem, setPlacingItem] = useState<PlacingItemInfo | null>(null);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [editedName, setEditedName] = useState<string>('');
 
     useEffect(() => {
         const fetchUser = async () => {
@@ -440,33 +442,44 @@ export default function LetterHtmlReviewPage() {
         setPlacedItems(prev => prev.filter(item => item.id !== id));
     };
 
-    const handlePlaceSignature = () => {
-        if (!selectedSignatureUrl) {
-            message.error("Please select a signature first.");
-            return;
-        }
-        setPlacingItem({ type: 'signature', url: selectedSignatureUrl, width: 100, height: 40 });
+    const handlePlaceSignature = (sig: SignatureData) => {
+        setPlacingItem({ type: 'signature', url: sig.r2Url, width: 100, height: 40 });
+        setSelectedSignatureUrl(sig.r2Url);
+        setSelectedStampUrl(null);
+        message.info('Click on the PDF page to place the signature.');
     };
 
-    const handlePlaceStamp = () => {
-        if (!selectedStampUrl) {
-            message.error("Please select a stamp first.");
-            return;
-        }
-        setPlacingItem({ type: 'stamp', url: selectedStampUrl, width: 60, height: 60 });
+    const handlePlaceStamp = (sig: StampData) => {
+
+        setPlacingItem({ type: 'stamp', url: sig.r2Url, width: 65, height: 60 });
+        setSelectedStampUrl(sig.r2Url);
+        setSelectedSignatureUrl(null);
+        message.info('Click on the PDF page to place the stamp.');
     };
 
     const handlePlaceQrCode = () => {
         setPlacingItem({ type: 'qrcode', width: 50, height: 50 });
+        message.info('Click on the PDF page to place the QR Code. This is a required step for final approval.');
     };
 
     const handleApprove = async () => {
         if (!letterId || !currentUser?.id || !canTakeAction) return;
         const isFinalApproval = letterDetails?.workflowStatus === LetterWorkflowStatus.PENDING_APPROVAL;
-        if (isFinalApproval && placedItems.length === 0) {
-            message.error("Please place at least one item (signature, stamp, or QR code) for final approval.");
-            return;
+        
+        if (isFinalApproval) {
+            const hasQrCode = placedItems.some(item => item.type === 'qrcode');
+            
+            if (!hasQrCode) {
+                message.error("QR Code placement is mandatory for final approval. Please place a QR Code on the document.");
+                return;
+            }
+            
+            if (placedItems.length === 0) {
+                message.error("Please place at least one item (signature, stamp, or QR code) for final approval.");
+                return;
+            }
         }
+        
         setIsActionLoading(true);
         message.loading({ content: 'Processing approval...', key: 'action', duration: 0 });
         try {
@@ -474,6 +487,7 @@ export default function LetterHtmlReviewPage() {
             const payload = isFinalApproval
                 ? {
                     comment: actionComment,
+                    name: editedName.trim(),
                     placements: placedItems.map(item => ({
                         type: item.type,
                         url: item.type === 'qrcode' ? 'QR_PLACEHOLDER' : item.url,
@@ -483,7 +497,10 @@ export default function LetterHtmlReviewPage() {
                         heightPct: item.heightPct,
                     })),
                   }
-                : { comment: actionComment };
+                : { 
+                    comment: actionComment,
+                    name: editedName.trim()
+                };
             await apiRequest(endpoint, 'POST', payload);
             message.success({ content: 'Action successful!', key: 'action', duration: 2 });
             setActionComment('');
@@ -581,7 +598,20 @@ export default function LetterHtmlReviewPage() {
                     {!isFinalApprovalStep && (
                         <Button icon={<SendOutlined />} onClick={showReassignModal} loading={isActionLoading} disabled={isActionLoading}> Reassign </Button>
                     )}
-                    <Button type="primary" icon={<CheckOutlined />} onClick={handleApprove} loading={isActionLoading} disabled={isActionLoading || (isFinalApprovalStep && placedItems.length === 0)}>
+                    <Button 
+                        type="primary" 
+                        icon={<CheckOutlined />} 
+                        onClick={handleApprove} 
+                        loading={isActionLoading} 
+                        disabled={
+                            isActionLoading || 
+                            (isFinalApprovalStep && (
+                                placedItems.length === 0 || 
+                                !placedItems.some(item => item.type === 'qrcode')
+                            ))
+                        }
+                        title={isFinalApprovalStep && !placedItems.some(item => item.type === 'qrcode') ? 'QR Code placement is required for final approval' : ''}
+                    >
                         {isFinalApprovalStep ? 'Final Approve' : 'Approve Step'}
                     </Button>
                 </Space>
@@ -672,6 +702,13 @@ export default function LetterHtmlReviewPage() {
                         <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4 workflow-container">
                             {isFinalApprovalSigningMode && (
                                 <div className="border-b pb-4 mb-4 space-y-3">
+                                    <Alert 
+                                        message="Final Approval Stage" 
+                                        description="You are the final approver. Please place your signature/stamp and the required QR code on the document before approving."
+                                        type="info" 
+                                        showIcon 
+                                        style={{ marginBottom: '12px' }}
+                                    />
                                     <Title level={5} style={{ marginBottom: '8px' }}>Add Signature, Stamp & QR Code</Title>
                                     <div>
                                         <Typography.Title level={5} style={{ marginBottom: '8px' }}>Select Signature</Typography.Title>
@@ -683,7 +720,7 @@ export default function LetterHtmlReviewPage() {
                                                     <button
                                                         key={sig.id}
                                                         type="button"
-                                                        onClick={() => setSelectedSignatureUrl(sig.r2Url)}
+                                                        onClick={() => handlePlaceSignature(sig)}
                                                         className={`p-1 border rounded-md transition-all ${selectedSignatureUrl === sig.r2Url ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-300 hover:border-gray-400'}`}
                                                         title={sig.name || 'Signature'}
                                                     >
@@ -692,9 +729,9 @@ export default function LetterHtmlReviewPage() {
                                                 ))}
                                             </div>
                                         )}
-                                        {savedSignatures.length > 0 && (
+                                        {/* {savedSignatures.length > 0 && (
                                             <Button onClick={handlePlaceSignature} disabled={!selectedSignatureUrl} className="mt-2">Place Signature</Button>
-                                        )}
+                                        )} */}
                                     </div>
                                     <div>
                                         <Typography.Title level={5} style={{ marginBottom: '8px' }}>Select Stamp</Typography.Title>
@@ -706,7 +743,7 @@ export default function LetterHtmlReviewPage() {
                                                     <button
                                                         key={stamp.id}
                                                         type="button"
-                                                        onClick={() => setSelectedStampUrl(stamp.r2Url)}
+                                                        onClick={() => handlePlaceStamp(stamp)}
                                                         className={`p-1 border rounded-full transition-all ${selectedStampUrl === stamp.r2Url ? 'border-blue-500 ring-2 ring-blue-300' : 'border-gray-300 hover:border-gray-400'}`}
                                                         title={stamp.name || 'Stamp'}
                                                     >
@@ -715,16 +752,31 @@ export default function LetterHtmlReviewPage() {
                                                 ))}
                                             </div>
                                         )}
-                                        {savedStamps.length > 0 && (
+                                        {/* {savedStamps.length > 0 && (
                                             <Button onClick={handlePlaceStamp} disabled={!selectedStampUrl} className="mt-2">Place Stamp</Button>
-                                        )}
+                                        )} */}
                                     </div>
                                     <div>
-                                        <Typography.Title level={5} style={{ marginBottom: '8px' }}>Add QR Code</Typography.Title>
-                                        <Button icon={<QrcodeOutlined />} onClick={handlePlaceQrCode}>Place QR Code</Button>
+                                        <Typography.Title level={5} style={{ marginBottom: '8px' }}>
+                                            Add QR Code <span style={{ color: 'red' }}>*</span>
+                                            <Tooltip title="QR Code placement is required for final approval">
+                                                <InfoCircleOutlined style={{ marginLeft: '5px', fontSize: '14px' }} />
+                                            </Tooltip>
+                                        </Typography.Title>
+                                        <Button 
+                                            type="primary" 
+                                            icon={<QrcodeOutlined />} 
+                                            onClick={handlePlaceQrCode}
+                                            danger={isFinalApprovalSigningMode && !placedItems.some(item => item.type === 'qrcode')}
+                                        >
+                                            {placedItems.some(item => item.type === 'qrcode') ? 'QR Code Added' : 'Place QR Code (Required)'}
+                                        </Button>
                                     </div>
                                     {placingItem && (
                                         <Alert message={`Click on the letter to place the ${placingItem.type}.`} type="info" showIcon closable onClose={() => setPlacingItem(null)} className="mt-2" />
+                                    )}
+                                    {isFinalApprovalSigningMode && !placedItems.some(item => item.type === 'qrcode') && !placingItem && (
+                                        <Alert message="QR code placement is required for final approval" type="warning" showIcon className="mt-2" />
                                     )}
                                 </div>
                             )}
@@ -804,7 +856,16 @@ export default function LetterHtmlReviewPage() {
             <div className="mb-6 flex items-center justify-between bg-white p-4 rounded-lg shadow-sm flex-wrap">
                 <div className="flex items-center mr-4 mb-2 md:mb-0">
                     <Button icon={<ArrowLeftOutlined />} onClick={() => router.back()} type="text" aria-label="Go back" className="mr-2" />
-                    <Title level={3} className="mb-0 truncate"> Review Letter: {letterDetails?.name || (letterId ? `ID ${letterId.substring(0, 8)}...` : '')} </Title>
+                    <div className="flex items-center">
+                        <Title level={3} className="mb-0 mr-2">Review Letter:</Title>
+                        <Input
+                            value={(editedName || letterDetails?.name) ?? ''}
+                            onChange={(e) => setEditedName(e.target.value)}
+                            size="large"
+                            style={{ width: '300px' }}
+                            placeholder="Enter letter name"
+                        />
+                    </div>
                 </div>
                 <div className="flex justify-end flex-grow">
                     {renderActionButtons()}

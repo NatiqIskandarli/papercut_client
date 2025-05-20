@@ -156,9 +156,10 @@ function LoginContent() {
       // Keep loading state true while redirecting
       setIsLoading(true);
       const returnUrl = searchParams?.get('from') || '/dashboard';
+      window.location.href = '/dashboard';
       
       // Use router.push - Next.js will handle the navigation
-      router.push(returnUrl);
+     // router.push(returnUrl);
     }
   }, [loginSuccess, router, searchParams]);
 

@@ -293,6 +293,10 @@ export default function LetterPdfReviewPage() {
             const payload: { comment: string; placements?: PlacementInfoForDisplay[] } = { comment: actionComment };
 
             if (isFinalApproval) {
+                if (placedItems.length === 0) {
+                    message.error("Please place at least one item (signature, stamp, or QR code) for final approval.");
+                    return;
+                }
                 const placementsForBackend: PlacementInfoForDisplay[] = placedItems.map(item => {
                   const dims = pageDimensions[item.pageNumber];
                   if (!dims) {

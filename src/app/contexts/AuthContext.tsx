@@ -193,13 +193,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           //   expires: 1 // 1 day
           // });
 
-
-Cookies.set('access_token_w', data.accessToken, { 
-  secure: true, 
-  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  domain: process.env.NODE_ENV === 'production' ? '.papercut.website' : undefined,
-  expires: 1 // 1 gün
-});
+          Cookies.set('access_token_w', data.accessToken, { 
+            secure: true, // Həmişə true olsun
+            sameSite: 'none', // Production-da cross-domain üçün 'none' olmalıdır
+            expires: 1, // 1 gün
+            domain: window.location.hostname.includes('localhost') ? 'localhost' : undefined
+          });
         }
         
         return data.accessToken;

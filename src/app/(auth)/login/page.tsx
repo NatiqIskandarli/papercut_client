@@ -207,18 +207,14 @@ function LoginContent() {
         setIsLoading(false);
       } else if (response?.accessToken) {
         // Manual cookie təyin etmə (əlavə tədbir kimi)
-        // Cookies.set('access_token_w', response.accessToken, { 
-        //   secure: true,
-        //   sameSite: 'none',
-        //   expires: 1,
-        //   domain: window.location.hostname.includes('localhost') ? 'localhost' : undefined
-        // });
-
         Cookies.set('access_token_w', response.accessToken, { 
-          secure: window.location.protocol === "https:",
-          sameSite: window.location.hostname === 'localhost' ? 'lax' : 'none',
-          expires: 1
+          secure: true,
+          sameSite: 'none',
+          expires: 1,
+          domain: window.location.hostname.includes('localhost') ? 'localhost' : undefined
         });
+
+        
         
         console.log('Login successful, redirecting...');
         

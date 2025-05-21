@@ -699,7 +699,7 @@ export default function LetterHtmlReviewPage() {
                     </Col>
 
                     <Col xs={24} lg={8} className="workflow-col">
-                        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4 workflow-container">
+                        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4 workflow-container"  style={{ display: 'flex', flexDirection: 'column', maxHeight: 'auto', overflowY: 'auto' }}>
                             {isFinalApprovalSigningMode && (
                                 <div className="border-b pb-4 mb-4 space-y-3">
                                     <Alert 

@@ -955,7 +955,7 @@ export default function LetterPdfReviewPage() {
                         </div>
                     </Col>
                     <Col xs={24} lg={8}>
-                        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4" style={{ display: 'flex', flexDirection: 'column', maxHeight: '75vh', overflowY: 'auto' }}>
+                        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4" style={{ display: 'flex', flexDirection: 'column', maxHeight: 'auto', overflowY: 'auto' }}>
                             {isFinalApprovalSigningMode && (
                                 <div className="border-b pb-4 mb-4 space-y-3">
                                     <Title level={5} style={{ marginBottom: '8px' }}>Select Signature & Stamp</Title>

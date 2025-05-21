@@ -78,43 +78,97 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
+  // const checkAuth = async () => {
+  //   try {
+  //     console.log('Checking authentication status...');
+  //     const response = await fetch(`${API_URL}/auth/verify`, {
+  //       credentials: 'include', // Important for sending cookies
+  //       headers: {
+  //         'Accept': 'application/json',
+  //         'Content-Type': 'application/json',
+  //       }
+  //     });
+
+  //     if (response.ok) {
+  //       const data = await response.json();
+  //       if (data.user) {
+  //         console.log('Authentication verified, user found');
+  //         setUser(data.user);
+  //       } else {
+  //         console.log('Authentication check: No user found');
+  //         setUser(null);
+  //         // Clear client-side cookie if server says no valid user
+  //         Cookies.remove('access_token_w');
+  //       }
+  //     } else {
+  //       console.log('Authentication check failed with status:', response.status);
+  //       // If token is invalid, clear everything
+  //       Cookies.remove('access_token_w');
+  //       setUser(null);
+  //     }
+  //   } catch (error) {
+  //     console.error('Auth check failed:', error);
+  //     Cookies.remove('access_token_w');
+  //     setUser(null);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
   const checkAuth = async () => {
     try {
       console.log('Checking authentication status...');
+      console.log('Current cookies:', document.cookie);
+      
+      // Daha spesifik xəta yoxlaması
       const response = await fetch(`${API_URL}/auth/verify`, {
-        credentials: 'include', // Important for sending cookies
+        credentials: 'include',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
         }
       });
-
+  
       if (response.ok) {
         const data = await response.json();
+        console.log('Auth check response:', data);
+        
         if (data.user) {
-          console.log('Authentication verified, user found');
+          console.log('User authenticated:', data.user.email);
           setUser(data.user);
+          
+          // Token refresh zamanını izləmək
+          const lastRefresh = new Date();
+          localStorage.setItem('lastTokenRefresh', lastRefresh.toISOString());
         } else {
-          console.log('Authentication check: No user found');
+          console.warn('Auth check: User data missing in response');
           setUser(null);
-          // Clear client-side cookie if server says no valid user
-          Cookies.remove('access_token_w');
+          // Cookie təmizləmə
+          Cookies.remove('access_token_w', { 
+            path: '/',
+            domain: window.location.hostname.includes('localhost') ? 'localhost' : undefined 
+          });
         }
       } else {
-        console.log('Authentication check failed with status:', response.status);
-        // If token is invalid, clear everything
-        Cookies.remove('access_token_w');
+        console.error('Authentication check failed with status:', response.status);
+        // Response-u da loglayın
+        const errorText = await response.text();
+        console.error('Auth check error response:', errorText);
+        
+        // Cookie təmizləmə
+        Cookies.remove('access_token_w', { 
+          path: '/',
+          domain: window.location.hostname.includes('localhost') ? 'localhost' : undefined 
+        });
         setUser(null);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('Auth check failed with exception:', error);
       Cookies.remove('access_token_w');
       setUser(null);
     } finally {
       setLoading(false);
     }
   };
-
   const refreshToken = async (): Promise<string | null> => {
     try {
       console.log('Refreshing authentication token...');
@@ -133,11 +187,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         // Update client-side cookie
         if (data.accessToken) {
-          Cookies.set('access_token_w', data.accessToken, { 
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            expires: 1 // 1 day
-          });
+          // Cookies.set('access_token_w', data.accessToken, { 
+          //   secure: process.env.NODE_ENV === 'production',
+          //   sameSite: 'lax',
+          //   expires: 1 // 1 day
+          // });
+
+
+Cookies.set('access_token_w', data.accessToken, { 
+  secure: true, 
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  domain: process.env.NODE_ENV === 'production' ? '.papercut.website' : undefined,
+  expires: 1 // 1 gün
+});
         }
         
         return data.accessToken;
@@ -174,10 +236,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!data.requiresTwoFactor) {
         // The HTTP-only cookie is already set by the server
         // Store a non-HTTP version for client-side detection of login status
+        // Cookies.set('access_token_w', data.accessToken, { 
+        //   secure: process.env.NODE_ENV === 'production',
+        //   sameSite: 'lax', // More compatible than strict
+        //   expires: 1 // 1 day
+        // });
+
         Cookies.set('access_token_w', data.accessToken, { 
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax', // More compatible than strict
-          expires: 1 // 1 day
+          secure: true, // Həmişə true olsun
+          sameSite: 'none', // Production-da cross-domain üçün 'none' olmalıdır
+          expires: 1, // 1 gün
+          domain: window.location.hostname.includes('localhost') ? 'localhost' : undefined
         });
         
         setUser(data.user);

@@ -9,6 +9,7 @@ import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
 import { checkEmail, sendMagicLink, verifyMagicLink } from '@/utils/api';
 import dynamic from 'next/dynamic';
 import { FormInstance } from 'antd/lib/form';
+import Cookies from 'js-cookie';
 
 // Define necessary interfaces
 interface User {
@@ -156,10 +157,10 @@ function LoginContent() {
       // Keep loading state true while redirecting
       setIsLoading(true);
       const returnUrl = searchParams?.get('from') || '/dashboard';
-      window.location.href = '/dashboard';
+      //window.location.href = '/dashboard';
       
       // Use router.push - Next.js will handle the navigation
-     // router.push(returnUrl);
+     router.push(returnUrl);
     }
   }, [loginSuccess, router, searchParams]);
 
@@ -194,23 +195,49 @@ function LoginContent() {
   const handleSignIn = async (values: SignInFormValues) => {
     setIsLoading(true);
     setError('');
+    console.log('Login attempt started...');
     
     try {
       const response = await login(values.email, values.password);
+      console.log('Login response received:', response);
       
       if (response?.requiresTwoFactor) {
         setTempUserData(response.user);
         setShowTwoFactorModal(true);
         setIsLoading(false);
       } else if (response?.accessToken) {
-        setLoginSuccess(true);
+        // Manual cookie təyin etmə (əlavə tədbir kimi)
+        // Cookies.set('access_token_w', response.accessToken, { 
+        //   secure: true,
+        //   sameSite: 'none',
+        //   expires: 1,
+        //   domain: window.location.hostname.includes('localhost') ? 'localhost' : undefined
+        // });
+
+        Cookies.set('access_token_w', response.accessToken, { 
+          secure: window.location.protocol === "https:",
+          sameSite: window.location.hostname === 'localhost' ? 'lax' : 'none',
+          expires: 1
+        });
+        
+        console.log('Login successful, redirecting...');
+        
+        // Qısa bir gecikmə təyin edin - cookie'nin saxlanılmağına imkan verir
+        setTimeout(() => {
+          setLoginSuccess(true);
+        }, 500);
       } else {
+        console.error('Login successful but no access token received');
         setError('Login successful but no access token received');
         setIsLoading(false);
       }
     } catch (error: any) {
-      console.error('Login error:', error);
-      setError(error.response?.data?.message || 'Invalid email or password');
+      console.error('Login error details:', error);
+      const errorMessage = error.response?.data?.message || 
+                          (error.message || 'Unknown error occurred');
+      const statusCode = error.response?.status || 'No status';
+      console.error(`Login failed with status ${statusCode}: ${errorMessage}`);
+      setError(errorMessage);
       setIsLoading(false);
     }
   };

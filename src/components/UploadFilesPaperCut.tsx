@@ -336,6 +336,13 @@ const UploadAndSignPdf: React.FC = () => {
     const handleSaveSignedLetter = async () => {
         if (!processingFile) { message.error('No file selected for processing.'); return }
         if (placedItems.length === 0) { message.warning('Please add at least one item (signature, stamp, or QR placeholder).'); return; }
+        const hasQrCode = placedItems.some(item => item.type === 'qrcode');
+                    
+        if (!hasQrCode) {
+            message.error("QR Code placement is mandatory for final approval. Please place a QR Code on the document.");
+            return;
+        }
+        
         if (!selectedReviewers || selectedReviewers.length === 0) { message.warning('Please add at least one reviewer.'); return }
         // if (!selectedApprover) { message.warning('Please select a final approver.'); return; } // Making approver optional as per existing code
 

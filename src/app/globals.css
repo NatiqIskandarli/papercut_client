@@ -164,10 +164,12 @@ a {
 
 .main-container {
 	--ckeditor5-preview-height: 700px;
-	font-family: 'Lato';
-	width: fit-content;
-	margin-left: auto;
-	margin-right: auto;
+    font-family: 'Lato';
+    width: 100%;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    overflow-x: hidden;
 }
 
 .ck-content {
@@ -178,7 +180,8 @@ a {
 
 .editor-container__editor-wrapper {
 	display: flex;
-	width: fit-content;
+	width: 100%;
+  justify-content: center;
 }
 
 .editor-container_document-editor {
@@ -223,16 +226,16 @@ a {
 }
 
 .editor-container_document-editor .editor-container__editor .ck.ck-editor__editable {
-	box-sizing: border-box;
-	min-width: calc(210mm + 2px);
-	max-width: calc(210mm + 2px);
-	min-height: 297mm;
-	height: fit-content;
-	padding: 20mm 12mm;
-	border: 1px hsl(0, 0%, 82.7%) solid;
-	background: hsl(0, 0%, 100%);
-	box-shadow: 0 2px 3px hsla(0, 0%, 0%, 0.078);
-	flex: 1 1 auto;
-	margin-left: 72px;
-	margin-right: 72px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(210mm + 2px);
+  min-height: 297mm;
+  height: fit-content;
+  padding: 20mm 12mm;
+  border: 1px hsl(0, 0%, 82.7%) solid;
+  background: hsl(0, 0%, 100%);
+  box-shadow: 0 2px 3px hsla(0, 0%, 0%, 0.078);
+  flex: 1 1 auto;
+  margin-left: auto;
+  margin-right: auto;
 }
